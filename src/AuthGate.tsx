@@ -3,12 +3,28 @@ import {createClient, type Session} from '@supabase/supabase-js';
 import {Capacitor} from '@capacitor/core';
 import {App} from '@capacitor/app';
 import {Browser} from '@capacitor/browser';
+import {SocialLogin, type GoogleLoginResponseOnline} from '@capgo/capacitor-social-login';
 import './auth.css';
 
 const url=import.meta.env.VITE_SUPABASE_URL as string|undefined;
 const key=import.meta.env.VITE_SUPABASE_ANON_KEY as string|undefined;
 const native=Capacitor.isNativePlatform();
 const callback='com.siliconhustle.game://auth/callback';
+const googleWebClientId='665622953523-ohtb176bfvi3lau36teuunu60lbki0nd.apps.googleusercontent.com';
+const googleIOSClientId='665622953523-143uatg5tp21h14sjnvgnbk8imdkifnt.apps.googleusercontent.com';
+let nativeGoogleReady:Promise<void>|null=null;
+function initializeNativeGoogle(){
+ if(!nativeGoogleReady)nativeGoogleReady=SocialLogin.initialize({google:{webClientId:googleWebClientId,iOSClientId:googleIOSClientId,iOSServerClientId:googleWebClientId,mode:'online'}}).catch(error=>{nativeGoogleReady=null;throw error;});
+ return nativeGoogleReady;
+}
+async function googleNonce(){
+ const bytes=new Uint8Array(32);crypto.getRandomValues(bytes);
+ const raw=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+ const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(raw));
+ const hashed=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+ return {raw,hashed};
+}
+
 export const supabase=url&&key?createClient(url,key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:!native,flowType:'pkce'}}):null;
 
 async function completeNativeLogin(link:string){
@@ -115,10 +131,24 @@ export default function AuthGate({children}:{children:React.ReactNode}){
   if(!supabase){setNotice('Google sign-in will be available after Supabase is configured.');return;}
   setBusy(true);setNotice('');
   try{
-   const {data,error}=await supabase.auth.signInWithOAuth({provider:'google',options:{redirectTo:native?callback:window.location.origin+window.location.pathname,skipBrowserRedirect:native}});
-   if(error)throw error;
-   if(native){if(!data.url)throw new Error('No Google sign-in URL was returned.');await Browser.open({url:data.url});}
-  }catch(error){setNotice(error instanceof Error?error.message:'Google sign-in failed.');setBusy(false);}
+   if(native){
+    await initializeNativeGoogle();
+    const {raw,hashed}=await googleNonce();
+    const response=await SocialLogin.login({provider:'google',options:{scopes:['email','profile'],nonce:hashed}});
+    if(response.result.responseType!=='online')throw new Error('Google did not return an online sign-in result.');
+    const token=(response.result as GoogleLoginResponseOnline).idToken;
+    if(!token)throw new Error('Google did not return an ID token.');
+    const payload=JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))) as {nonce?:string};
+    if(payload.nonce&&payload.nonce!==hashed)throw new Error('Google sign-in nonce did not match.');
+    const {error}=await supabase.auth.signInWithIdToken({provider:'google',token,...(payload.nonce?{nonce:raw}:{})});
+    if(error)throw error;
+    setShowAuth(false);setNotice('Signed in successfully.');
+   }else{
+    const {error}=await supabase.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin+window.location.pathname}});
+    if(error)throw error;
+   }
+  }catch(error){setNotice(error instanceof Error?error.message:'Google sign-in failed.');}
+  finally{setBusy(false);}
  }
  async function signInEmail(e:React.FormEvent){
   e.preventDefault();
