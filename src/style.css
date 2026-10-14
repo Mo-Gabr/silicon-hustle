@@ -47,3 +47,7 @@
 .final-cover .story-graphic{border-color:#6e795d}
 .crisis-outcome .story-graphic{margin-top:20px}
 @media(max-width:580px){.story-graphic figcaption{font-size:10px}}
+
+/* Native iPhone safe-area and small-screen layout */
+.shell{padding-bottom:calc(65px + env(safe-area-inset-bottom,0px));padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+@media(max-width:480px){.shell{padding-left:14px;padding-right:14px}nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}nav button{min-width:0;padding:12px 8px;white-space:normal}header{gap:10px}header h1{font-size:clamp(28px,8vw,42px)}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
