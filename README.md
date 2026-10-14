@@ -2,6 +2,13 @@
 
 A fictional AI hardware trading and startup management game.
 
+## v0.9 follow-up — Save protection and iOS preparation
+
+- Cloud updates now check the last known server revision before replacing a save. If another device has saved first, players must choose which progress to keep rather than silently overwriting it.
+- The account bar shows cloud-save status. Guest saves remain local.
+- [IOS_SETUP.md](IOS_SETUP.md) contains the first native Xcode build steps and the native OAuth work still required.
+- **Verification pending:** These changes are committed, but production build, concurrent-device testing, and native iOS authentication have not yet been verified.
+
 ## New in v0.9 — Founder welcome, guest play, and accounts
 
 - **First-visit welcome:** A retro-styled “WELCOME, FOUNDER.” splash screen with startup satire and a “LET'S HUSTLE” button. Returning players go straight into the game.
