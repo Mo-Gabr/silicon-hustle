@@ -1,10 +1,31 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {createClient, type Session} from '@supabase/supabase-js';
+import {Capacitor} from '@capacitor/core';
+import {App} from '@capacitor/app';
+import {Browser} from '@capacitor/browser';
 import './auth.css';
 
 const url=import.meta.env.VITE_SUPABASE_URL as string|undefined;
 const key=import.meta.env.VITE_SUPABASE_ANON_KEY as string|undefined;
-export const supabase=url&&key?createClient(url,key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}}):null;
+const native=Capacitor.isNativePlatform();
+const callback='com.siliconhustle.game://auth/callback';
+export const supabase=url&&key?createClient(url,key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:!native,flowType:'pkce'}}):null;
+
+async function completeNativeLogin(link:string){
+ if(!supabase||!link.startsWith(callback))return false;
+ const parsed=new URL(link);
+ const params=new URLSearchParams(parsed.search);
+ const fragment=new URLSearchParams(parsed.hash.slice(1));
+ const error=params.get('error_description')||fragment.get('error_description')||params.get('error')||fragment.get('error');
+ if(error)throw new Error(error);
+ const code=params.get('code')||fragment.get('code');
+ if(code){const {error:authError}=await supabase.auth.exchangeCodeForSession(code);if(authError)throw authError;return true;}
+ const access_token=fragment.get('access_token')||params.get('access_token');
+ const refresh_token=fragment.get('refresh_token')||params.get('refresh_token');
+ if(access_token&&refresh_token){const {error:authError}=await supabase.auth.setSession({access_token,refresh_token});if(authError)throw authError;return true;}
+ throw new Error('Login link did not contain a session. Please try signing in again.');
+}
+
 const SAVE_KEY='silicon-hustle-v04';
 const WELCOME_KEY='silicon-hustle-welcome-v09';
 const saved=()=>localStorage.getItem(SAVE_KEY);
@@ -92,17 +113,23 @@ export default function AuthGate({children}:{children:React.ReactNode}){
  },[session?.user.id,conflict]);
  async function signInGoogle(){
   if(!supabase){setNotice('Google sign-in will be available after Supabase is configured.');return;}
-  setBusy(true);
-  const {error}=await supabase.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin+window.location.pathname}});
-  if(error){setNotice(error.message);setBusy(false);}
+  setBusy(true);setNotice('');
+  try{
+   const {data,error}=await supabase.auth.signInWithOAuth({provider:'google',options:{redirectTo:native?callback:window.location.origin+window.location.pathname,skipBrowserRedirect:native}});
+   if(error)throw error;
+   if(native){if(!data.url)throw new Error('No Google sign-in URL was returned.');await Browser.open({url:data.url});}
+  }catch(error){setNotice(error instanceof Error?error.message:'Google sign-in failed.');setBusy(false);}
  }
  async function signInEmail(e:React.FormEvent){
   e.preventDefault();
   if(!supabase){setNotice('Email sign-in will be available after Supabase is configured.');return;}
-  setBusy(true);
-  const {error}=await supabase.auth.signInWithOtp({email,options:{emailRedirectTo:window.location.origin+window.location.pathname}});
-  setNotice(error?error.message:'Check your email for a secure sign-in link.');
-  setBusy(false);
+  setBusy(true);setNotice('');
+  try{
+   const {error}=await supabase.auth.signInWithOtp({email,options:{emailRedirectTo:native?callback:window.location.origin+window.location.pathname}});
+   if(error)throw error;
+   setNotice('Check your email for a secure sign-in link. Open it on this iPhone to return to Silicon Hustle.');
+  }catch(error){setNotice(error instanceof Error?error.message:'Could not send sign-in email.');}
+  finally{setBusy(false);}
  }
  async function chooseSave(useCloud:boolean){
   if(!conflict||!session||!supabase)return;
