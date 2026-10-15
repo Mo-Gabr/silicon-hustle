@@ -1,0 +1,94 @@
+/* Desktop keeps its existing layout; responsive panels share the same game controls. */
+.mobile-valuation,.mobile-target,.portfolio-toggle{display:none}
+.market-screen,.portfolio-panel{display:contents}
+@media(max-width:650px){
+  .shell{font-size:16px;line-height:1.45;padding:10px max(12px,env(safe-area-inset-right,0px)) calc(90px + env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px))}
+  .shell button,.shell input,.shell select,.shell summary{min-height:44px}
+  .shell button:focus-visible,.shell input:focus-visible,.shell select:focus-visible,.shell summary:focus-visible{outline:2px solid #d8b978;outline-offset:3px}
+  .shell header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;padding-bottom:8px;align-items:center}
+  .shell header>.month{grid-column:1;grid-row:2;display:flex;align-items:baseline;gap:5px;font-size:13px;letter-spacing:0;text-align:left}
+  .shell header .month strong{display:inline;font-size:20px;margin-left:0}
+  .shell header .month span{display:inline}
+  .shell header>.mobile-valuation{display:flex;flex-direction:column;gap:2px;text-align:right;margin-left:auto;grid-column:2;grid-row:1/3}
+  .mobile-valuation small{color:#b8cdc2;font-size:13px;letter-spacing:0}
+  .mobile-valuation strong{font-size:22px;color:#65e2a4}
+  .shell header h1{font-size:20px;letter-spacing:-.5px;margin:0}
+  .shell header .eyebrow,.shell header p{display:none}
+  .shell .topnav{position:fixed;bottom:0;left:0;right:0;z-index:10;margin:0;padding:8px max(8px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.15fr) minmax(0,1.3fr);gap:5px;background:#091316;border-top:1px solid #416054}
+  .shell .topnav button{font-size:13px;min-height:52px;padding:6px 2px;min-width:0;white-space:normal;line-height:1.4}
+  .shell .stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:8px 0}
+  .shell .stats>div{padding:8px 6px;min-width:0}
+  .shell .stats>div:nth-child(3),.shell .stats>div:nth-child(4),.shell>.goal{display:none}
+  .shell .stats small{font-size:13px;letter-spacing:0;margin-bottom:4px}
+  .shell .stats strong{font-size:20px}
+  .shell .stats>.mobile-target{display:grid;grid-template-columns:1fr;gap:2px;align-items:center}
+  .mobile-target small{grid-column:1/-1}
+  .mobile-target span{font-size:13px;color:#b8cdc2;grid-column:1/-1}
+  .mobile-target progress{grid-column:1/-1;grid-row:4;width:100%;height:5px;accent-color:#65e2a4}
+  .shell .news{padding:8px 10px;margin:8px 0;font-size:16px;line-height:1.45;display:block}
+  .shell .news b{display:inline;margin-right:8px}
+  .shell .hint{padding:8px 10px;font-size:16px;line-height:1.5;margin-bottom:10px}
+  .market-screen{display:flex;flex-direction:column;gap:8px}
+  .portfolio-panel{display:block;order:0;border:1px solid #34554b;border-radius:8px;background:#142326}
+  .portfolio-toggle{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:10px 12px;background:transparent;border:0;color:#65e2a4;font-size:16px;text-align:left}
+  .portfolio-panel.collapsed>.holdings{display:none}
+  .shell .holdings{margin:0;padding:10px;border:0;background:transparent}
+  .holdings-head{gap:6px}.holdings-head>div:first-child{display:none}
+  .portfolio-summary{font-size:16px;line-height:1.45}
+  .holdings-table,.holdings-table tbody{display:block;white-space:normal}
+  .holdings-table thead{display:none}
+  .holdings-table tbody tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding:10px 0;border-bottom:1px solid #304943}
+  .holdings-table tbody td{padding:0;border:0;text-align:left;font-size:16px;overflow-wrap:anywhere}
+  .holdings-table tbody td:first-child{grid-column:1/-1;color:white}
+  .holdings-table tbody td[data-label]::before{content:attr(data-label);display:block;color:#b8cdc2;font-size:13px;margin-bottom:3px}
+  .holdings-table tfoot{display:none}
+  .holdings>small{font-size:13px}
+  .market-screen>.sectiontitle{order:2;font-size:18px;letter-spacing:0;margin:2px 0 0}
+  .market-screen>.trade{order:1;position:sticky;top:env(safe-area-inset-top,0px);z-index:5;margin:0;padding:10px;gap:8px;background:#142326;box-shadow:0 6px 12px #0005;grid-template-columns:1fr}
+  .trade .eyebrow{font-size:13px;letter-spacing:0}
+  .trade h2{font-size:20px;margin:2px 0}
+  .trade p{display:none}
+  .trade .mini{font-size:14px;line-height:1.4;color:#b8cdc2}
+  .tradecontrols{display:grid;grid-template-columns:62px minmax(0,1fr);gap:5px 8px;align-items:center}
+  .tradecontrols label{font-size:13px;grid-column:1;grid-row:1}
+  .tradecontrols input{grid-column:1;grid-row:2;width:100%;padding:8px;font-size:16px;min-width:0}
+  .tradecontrols .actions{grid-column:2;grid-row:2;gap:6px}
+  .tradecontrols .actions button{padding:8px 4px;font-size:14px}
+  .tradecontrols>small{grid-column:1/-1;font-size:13px;line-height:1.4;color:#b8cdc2}
+  .shell .market{order:3;display:flex;flex-direction:column;gap:6px}
+  .shell .asset{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;min-height:86px;padding:8px 10px;scroll-margin-top:280px}
+  .asset .maker{grid-column:1;font-size:13px}.asset .maker small,.asset-kind{display:none}
+  .asset>b{grid-column:1;grid-row:2;font-size:16px;overflow-wrap:anywhere}
+  .asset .price{grid-column:2;grid-row:1/3;align-self:center;font-size:22px}
+  .asset .sub{grid-column:1;grid-row:3;font-size:13px;color:#b8cdc2}
+  .asset>.up,.asset>.down{grid-column:2;grid-row:3;text-align:right;font-size:13px}
+  .shell .lab,.shell .rules{padding:12px;margin-top:8px}
+  .lab h2,.rules h2{font-size:20px}
+  .shell .labgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:12px 0}
+  .labgrid>div{padding:10px;min-width:0}.labgrid small{font-size:13px;letter-spacing:0;margin-bottom:8px}.labgrid b{font-size:20px;overflow-wrap:anywhere}
+  .shell .upgrade{padding:12px;gap:12px;flex-direction:column;align-items:stretch}
+  .upgrade b{font-size:18px}.upgrade small{font-size:14px;color:#b8cdc2}
+  .steps{gap:7px}.steps>div{padding:10px}.steps b{font-size:18px}.steps p{margin:6px 0 0}
+  .shell>.next{font-size:15px;padding:12px;margin-top:12px}
+  .shell .report-modal{max-height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 28px);padding:14px}
+  .modal-backdrop{padding-top:calc(14px + env(safe-area-inset-top,0px));padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
+  .report-top h2{font-size:19px}.report-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:12px 0}.report-grid>div{padding:9px;min-width:0}.report-grid strong{font-size:22px;overflow-wrap:anywhere}
+  .report-modal .story-graphic svg{max-height:150px}.report-modal .story-graphic{margin:10px 0}
+  .report-nav select{font-size:16px;max-width:100%}.cover-stats strong{font-size:22px}.verdict-details{grid-template-columns:repeat(2,minmax(0,1fr))}.verdict-details strong{font-size:20px}
+  .shell .foot{margin-top:16px;gap:8px}.shell footer{margin-top:14px;font-size:13px;letter-spacing:0;color:#b8cdc2}
+  .shell .eyebrow,.shell .sectiontitle,.shell .stats small,.shell .labgrid small{letter-spacing:0}
+  .shell .lab p,.shell .rules p,.shell .ending p,.shell .crisis>p,.shell .report-story,.shell .cover-lead{font-size:16px;line-height:1.5;color:#c3d6cb}
+  .shell .sub,.shell .portfolio-summary,.shell .holdings>small,.shell .report-fine,.shell .fine,.shell .foot,.shell .foot details p{color:#b8cdc2}
+  .shell .report-fine,.shell .fine,.shell .foot,.shell .foot details p{font-size:14px;line-height:1.5}
+  .shell .report-modal h3,.shell .ending h2{font-size:20px}
+  .shell .report-grid small,.shell .report-grid span,.shell .cover-stats small,.shell .verdict-details small,.shell .report-nav label,.shell .offers small,.shell .crisis-actions span{font-size:13px;color:#b8cdc2;letter-spacing:0}
+  .shell .story-graphic figcaption,.shell .cover-kicker,.shell .verdict{font-size:14px;letter-spacing:0}
+  .shell .report-modal button,.shell .upgrade button,.shell .starttrade,.shell .foot button{font-size:16px;padding:10px}
+  .shell .report-lines>div{font-size:16px;flex-wrap:wrap;gap:4px}
+  .shell .report-lines b{margin-left:auto;text-align:right}
+  .shell .next span{font-size:14px}
+  .shell .close-report{min-width:44px;flex-shrink:0}
+
+}
+/* Short landscape viewports need room for the market beneath the trade panel. */
+@media(max-width:650px) and (max-height:500px){.market-screen>.trade{position:static}}

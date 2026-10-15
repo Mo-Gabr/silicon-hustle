@@ -14,7 +14,11 @@ Guest play works without any backend. First visit shows a retro founder welcome;
 
 ## Save behavior
 
-Guest saves continue in localStorage. Once signed in, changes are also synced to Supabase. If a device has both a local save and an existing cloud save, players are asked which to keep. Cross-device syncing is best used on one device at a time; this version is not a collaborative multi-device live session. Save errors are shown to the player.
+Progress is written to localStorage before a cloud request. A persistent common baseline distinguishes unchanged devices from divergent offline progress. Matching saves synchronize automatically; conflicts show device/cloud summaries and require an explicit choice. Updates compare the exact cloud revision so a concurrent write cannot silently overwrite newer progress. Sync retries on reconnect, resume, and periodically while active.
+
+Before replacing progress, the device keeps recovery copies (the last eight replacements). They can be exported from Account. Sign-out keeps local progress and stops old session callbacks; changing accounts cannot silently upload another account's progress.
+
+See [CLOUD_SAVE_AUDIT.md](CLOUD_SAVE_AUDIT.md) for test coverage, physical-device checks, and rollout limits. Existing databases can use the updated client without a schema change. The non-destructive migration in `supabase/migrations/202610150001_save_revision_guard.sql` adds server-generated revisions and must be reviewed and applied separately. It has not been applied by this development task.
 
 ## iOS
 
