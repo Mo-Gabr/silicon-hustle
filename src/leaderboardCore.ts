@@ -103,7 +103,7 @@ export class BoardController {
    if(!this.active||mutation!==this.mutation)return;
    if(data.self&&this.userId)this.observe(data.self.best_valuation);
    this.emit({...data,status:'ready',error:'',loadedAt:new Date(this.clock()).toISOString()});
-  }catch(error){if(this.active)this.failure(error);}finally{this.reading=false;}
+  }catch(error){if(this.active&&mutation===this.mutation)this.failure(error);}finally{this.reading=false;}
  }
  async publish(name?:string):Promise<boolean>{
   if(!this.active||!this.userId)return false;

@@ -51,3 +51,13 @@ test('a stale ranking fetch cannot roll back a newly published own record',async
 test('submission binds the expected account even if the SDK auth token changes later',async()=>{const h=harness();h.board.observe(25000000);let expected;h.api.submit=async(value,version,name,user)=>{expected=user;return entry('a',value);};await h.board.publish('Ada Lab');assert.equal(expected,'alice');});
 
 test('ranking retains PostgreSQL microsecond achievement ordering',()=>{const order=ranked([entry('a',100,'2026-10-15T12:00:00.000002Z'),entry('b',100,'2026-10-15T12:00:00.000001Z')]);assert.deepEqual(order.map(x=>x.public_id),['b','a']);});
+
+test('a stale failed fetch cannot mark a successful publication as failed',async()=>{
+ const h=harness();h.board.observe(90000000);
+ let reject;h.api.read=()=>new Promise((_resolve,fail)=>{reject=fail;});
+ const read=h.board.refresh();
+ assert.equal(await h.board.publish('Ada Lab'),true);
+ reject(new Error('Old read failed'));await read;
+ assert.equal(h.board.view.status,'ready');assert.equal(h.board.view.error,'');
+ assert.equal(h.board.view.self.best_valuation,90000000);
+});

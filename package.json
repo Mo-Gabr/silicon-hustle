@@ -7,7 +7,9 @@
     "dev": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "test:leaderboard:db": "node scripts/test-leaderboard-db.mjs",
+    "test:leaderboard:stress": "node scripts/test-leaderboard-stress.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^7.1.2",
