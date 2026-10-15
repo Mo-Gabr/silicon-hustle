@@ -5,3 +5,8 @@
 .sh-account button{flex:0 0 auto;max-width:48%;line-height:1.35;white-space:normal;text-align:center}
 .sh-gate{padding-top:calc(18px + env(safe-area-inset-top,0px));padding-bottom:calc(18px + env(safe-area-inset-bottom,0px));padding-left:calc(18px + env(safe-area-inset-left,0px));padding-right:calc(18px + env(safe-area-inset-right,0px))}
 @media(max-width:390px){.sh-account{font-size:10px;gap:7px}.sh-account button{padding:8px;font-size:10px}}
+
+/* Prevent iOS auto-zoom on authentication inputs */
+@media (max-width: 600px) {
+  .sh-dialog input { font-size: 16px; }
+}

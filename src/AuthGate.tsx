@@ -65,7 +65,45 @@ export default function AuthGate({children}:{children:React.ReactNode}){
   if(!supabase){setReady(true);return;}
   supabase.auth.getSession().then(({data,error})=>{if(error)setNotice(error.message);setSession(data.session);setReady(true);});
   const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,next)=>{setSession(next);});
-  return ()=>subscription.unsubscribe();
+  let listener: { remove: () => Promise<void> } | undefined;
+let cancelled = false;
+
+if (native) {
+  App.addListener('appUrlOpen', async ({ url }) => {
+    try {
+      const completed = await completeNativeLogin(url);
+      if (completed) {
+        setShowAuth(false);
+        setNotice('Signed in successfully.');
+      }
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Email sign-in failed.');
+    }
+  }).then(handle => {
+    if (cancelled) void handle.remove();
+    else listener = handle;
+  });
+
+  App.getLaunchUrl().then(async result => {
+    if (result?.url) {
+      try {
+        const completed = await completeNativeLogin(result.url);
+        if (completed) {
+          setShowAuth(false);
+          setNotice('Signed in successfully.');
+        }
+      } catch (error) {
+        setNotice(error instanceof Error ? error.message : 'Email sign-in failed.');
+      }
+    }
+  });
+}
+
+return () => {
+  cancelled = true;
+  void listener?.remove();
+  subscription.unsubscribe();
+};
  },[]);
  useEffect(()=>{
   if(!supabase||!session?.user.id)return;
