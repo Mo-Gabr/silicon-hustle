@@ -17,10 +17,10 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let available=true;try{await access(chrome);}catch{available=false;}
 test('offline browser: gameplay/cloud-save parity with main plus isolated board flows',{skip:!available?'Chrome not installed; set CHROME_BIN':false,timeout:60000},async()=>{
  const root=await mkdtemp(join(tmpdir(),'silicon-board-release-browser-'));
- for(const variant of ['main','release']){
-  await build({entryPoints:['src/main.tsx'],bundle:true,format:'esm',outdir:join(root,variant),entryNames:'app',jsx:'automatic',define:{'import.meta.env.VITE_SUPABASE_URL':JSON.stringify('https://supabase.test'),'import.meta.env.VITE_SUPABASE_ANON_KEY':JSON.stringify('sb_publishable_SYNTHETIC_ONLY')},plugins:variant==='main'?[{name:'baseline-main',setup(b){b.onLoad({filter:/\/src\/main\.tsx$/},()=>({contents:execFileSync('git',['show',base+':src/main.tsx'],{encoding:'utf8'}),loader:'tsx'}));}}]:[]});
+ for(const variant of ['main','release','missingurl','missingkey','missingboth']){
+  await build({entryPoints:['src/main.tsx'],bundle:true,format:'esm',outdir:join(root,variant),entryNames:'app',jsx:'automatic',define:{'import.meta.env.VITE_SUPABASE_URL':(variant==='missingurl'||variant==='missingboth')?'undefined':JSON.stringify('https://supabase.test'),'import.meta.env.VITE_SUPABASE_ANON_KEY':(variant==='missingkey'||variant==='missingboth')?'undefined':JSON.stringify('sb_publishable_SYNTHETIC_ONLY')},plugins:variant==='main'?[{name:'baseline-main',setup(b){b.onLoad({filter:/\/src\/main\.tsx$/},()=>({contents:execFileSync('git',['show',base+':src/main.tsx'],{encoding:'utf8'}),loader:'tsx'}));}}]:[]});
  }
- const server=http.createServer(async(req,res)=>{const m=req.url.match(/^\/(main|release)\/(app\.(?:js|css))$/);if(m){res.setHeader('Content-Type',m[2].endsWith('js')?'text/javascript':'text/css');res.end(await readFile(join(root,m[1],m[2])));return;}if(/^\/(main|release)\/$/.test(req.url)){const v=req.url.split('/')[1];res.setHeader('Content-Type','text/html');res.end(`<div id="root"></div><link rel="stylesheet" href="/${v}/app.css"><script type="module" src="/${v}/app.js"></script>`);return;}res.writeHead(404);res.end();});
+ const server=http.createServer(async(req,res)=>{const m=req.url.match(/^\/(main|release|missingurl|missingkey|missingboth)\/(app\.(?:js|css))$/);if(m){res.setHeader('Content-Type',m[2].endsWith('js')?'text/javascript':'text/css');res.end(await readFile(join(root,m[1],m[2])));return;}if(/^\/(main|release|missingurl|missingkey|missingboth)\/$/.test(req.url)){const v=req.url.split('/')[1];res.setHeader('Content-Type','text/html');res.end(`<div id="root"></div><link rel="stylesheet" href="/${v}/app.css"><script type="module" src="/${v}/app.js"></script>`);return;}res.writeHead(404);res.end();});
  await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;
  const profile=join(root,'fresh-profile');
  const child=spawn(chrome,['--headless=new','--disable-gpu','--disable-extensions','--disable-background-networking','--disable-component-update','--disable-sync','--no-first-run','--no-default-browser-check','--no-proxy-server','--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE localhost','--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'],{stdio:'ignore'});
@@ -50,7 +50,7 @@ test('offline browser: gameplay/cloud-save parity with main plus isolated board 
      else if(request.method==='PATCH'){assert.equal(url.searchParams.get('updated_at'),'eq.'+state.row.updated_at);state.row={...state.row,...payload};body={updated_at:state.row.updated_at};}
      else throw Error('Unexpected save method');
     }else if(url.pathname==='/rest/v1/rpc/get_billionaire_board'){
-     state.reads++;body={entries:state.posted?[state.posted]:[],self:state.signed?state.posted:null,total:state.posted?1:0};
+     state.reads++;if(state.readError){status=404;body={code:'PGRST202',message:'SYNTHETIC_PRIVATE_BACKEND_DETAIL'};}else body={entries:state.posted?[state.posted]:[],self:state.signed?state.posted:null,total:state.posted?1:0};
     }else if(url.pathname==='/rest/v1/rpc/submit_billionaire_score'){
      state.submits++;assert.ok(state.signed);assert.equal(state.submits,1);const p=JSON.parse(request.postData);assert.equal(p.p_expected_user_id,uid);assert.equal(p.p_game_version,'0.9.0');assert.equal(p.p_display_name,'Synthetic Founder');assert.equal(p.p_valuation,Math.round(20000000+state.row.game_state.cash+state.row.game_state.positions.h100.qty*state.row.game_state.prices.h100));
      if(state.submitError){status=403;body={code:'42501',message:'Synthetic permission denied'};}
@@ -59,9 +59,10 @@ test('offline browser: gameplay/cloud-save parity with main plus isolated board 
    }catch{state.errors.push('unexpected intercepted request');status=500;body={message:'Synthetic route rejected'};}
    await send('Fetch.fulfillRequest',{requestId,responseCode:status,responseHeaders:[{name:'Content-Type',value:'application/json'},{name:'Access-Control-Allow-Origin',value:origin},{name:'Access-Control-Allow-Headers',value:'*'},{name:'Access-Control-Allow-Methods',value:'GET,POST,PATCH,OPTIONS'}],body:Buffer.from(JSON.stringify(body)).toString('base64')},m.sessionId);
   };
-  async function scenario(variant,{signed=false,empty=false,board=false,error=false,deviceChoice=false,noLocal=false,legacy=false,differentCloud=false}={}){
+  async function scenario(variant,{signed=false,empty=false,board=false,error=false,deviceChoice=false,noLocal=false,legacy=false,differentCloud=false,configurationMissing=false,readError=false,publicEntry=false}={}){
    const {browserContextId}=await send('Target.createBrowserContext');const {targetId}=await send('Target.createTarget',{url:'about:blank',browserContextId});const {sessionId}=await send('Target.attachToTarget',{targetId,flatten:true});
-   const state={signed,row:empty?null:{user_id:uid,game_state:(deviceChoice||differentCloud)?{...game(),month:4,cash:4000000}:game(),updated_at:'2026-10-15T00:00:00.123456Z'},posted:null,submits:0,reads:0,saves:[],errors:[],submitError:error};states.set(sessionId,state);
+   const state={signed,row:empty?null:{user_id:uid,game_state:(deviceChoice||differentCloud)?{...game(),month:4,cash:4000000}:game(),updated_at:'2026-10-15T00:00:00.123456Z'},posted:null,submits:0,reads:0,saves:[],errors:[],submitError:error,readError};states.set(sessionId,state);
+   if(publicEntry)state.posted={public_id:'00000000-0000-4000-8000-000000000303',display_name:'Synthetic Public Founder',best_valuation:1000,game_version:'0.9.0',position:1,achieved_at:'2026-10-16T00:00:00Z',verification:'unverified'};
    const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true},sessionId);if(r.exceptionDetails)throw Error('Browser assertion expression failed');return r.result.value;};
    const wait=async expression=>{for(let i=0;i<100;i++){if(await evaluate(expression))return;await sleep(50);}throw Error('Timed out: '+expression+'; sanitized status='+await evaluate(`document.querySelector('.sh-account [role="status"]')?.textContent`)+'; board notice='+await evaluate(`document.querySelector('.board-notice')?.textContent`)+'; submit count='+state.submits+'; test errors='+state.errors.join(',')+'; intercepted methods='+state.saves.map(x=>x.method).join(','));};
    await send('Page.enable',{},sessionId);await send('Runtime.enable',{},sessionId);await send('Fetch.enable',{patterns:[{urlPattern:'https://*',requestStage:'Request'}]},sessionId);
@@ -83,12 +84,17 @@ test('offline browser: gameplay/cloud-save parity with main plus isolated board 
    const afterGame=await evaluate(`JSON.parse(localStorage.getItem('silicon-hustle-v04'))`);
    const saveTraffic=structuredClone(state.saves),savedBefore=JSON.stringify(state.row),localBefore=JSON.stringify(afterGame);
    if(board){
-    await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='BILLIONAIRE BOARD').click()`);await wait(`!!document.querySelector('.board-empty')`);
+    await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='RANKINGS').click()`);await wait(`!!document.querySelector('.board-empty')||!!document.querySelector('.board-rankings')||!!document.querySelector('.board-notice')`);
+    assert.equal(await evaluate(`document.getElementById('board-title').textContent`),'RANKINGS');
+    assert.equal(await evaluate(`document.querySelector('.board-refresh').getAttribute('aria-label')`),'Refresh Rankings');
+    if(configurationMissing){assert.equal(state.reads,0);assert.match(await evaluate(`document.querySelector('.board-notice').textContent`),/Rankings is not configured for this deployment/);}
+    if(readError){assert.equal(state.reads,1);const notice=await evaluate(`document.querySelector('.board-notice').textContent`);assert.match(notice,/Rankings could not be reached/);assert.ok(!notice.includes('SYNTHETIC_PRIVATE_BACKEND_DETAIL'));}
     assert.equal(state.submits,0,'Login/page/game actions cannot publish automatically');
+    if(publicEntry){assert.equal(state.reads,1);assert.equal(await evaluate(`document.querySelector('.board-rankings b')?.textContent`),'Synthetic Public Founder');assert.equal(await evaluate(`document.querySelector('.board-position')?.textContent`),'#1');assert.equal(await evaluate(`document.querySelector('.board-notice')?.textContent??''`),'');}
     if(signed){
      await evaluate(`const i=document.querySelector('#founder-name');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,'Synthetic Founder');i.dispatchEvent(new Event('input',{bubbles:true}));`);
      await sleep(50);await evaluate(`document.querySelector('.board-name form').requestSubmit()`);
-     if(error){await wait(`!!document.querySelector('.board-notice')&&document.querySelector('.board-notice').textContent.includes('Synthetic permission denied')`);assert.equal(state.posted,null);}
+     if(error){await wait(`!!document.querySelector('.board-notice')&&document.querySelector('.board-notice').textContent.includes('Rankings access was denied')`);assert.equal(state.posted,null);}
      else {await wait(`!!document.querySelector('.board-rankings')`);assert.equal(state.posted.position,1);}
      assert.equal(state.submits,1);assert.equal(JSON.stringify(state.row),savedBefore,'Publishing cannot mutate cloud save');assert.equal(await evaluate(`JSON.stringify(JSON.parse(localStorage.getItem('silicon-hustle-v04')))`),localBefore,'Publishing cannot mutate device save');
      assert.equal(await evaluate(`document.querySelector('.board-rankings')?.textContent.includes('synthetic@example.invalid')??false`),false);
@@ -99,6 +105,9 @@ test('offline browser: gameplay/cloud-save parity with main plus isolated board 
   for(const options of [{signed:false},{signed:false,legacy:true},{signed:true},{signed:true,noLocal:true},{signed:true,differentCloud:true},{signed:true,empty:true},{signed:true,deviceChoice:true}]){
    const original=await scenario('main',options),release=await scenario('release',{...options,board:true});assert.deepEqual(release.afterGame,original.afterGame);assert.deepEqual(release.saveTraffic,original.saveTraffic,'Original save request shapes and payloads must match main');console.log('PASS: baseline gameplay/save parity '+JSON.stringify(options));
   }
+  await scenario('release',{board:true,publicEntry:true});console.log('PASS: configured anonymous client renders a populated Rankings response with rank, without sign-in, save requests or score writes');
+  for(const variant of ['missingurl','missingkey','missingboth']){await scenario(variant,{board:true,configurationMissing:true});console.log('PASS: missing Preview configuration '+variant+' makes no RPC and shows configuration error');}
+  await scenario('release',{board:true,readError:true});console.log('PASS: real RPC-not-found is distinct from missing configuration and does not echo backend details');
   await scenario('release',{signed:true,board:true,error:true});console.log('PASS: synthetic submit permission error has no retries or save mutations');
   await send('Browser.close');
  }finally{ws?.close();child.kill('SIGTERM');await new Promise(r=>server.close(r));}

@@ -1,3 +1,4 @@
+import {rankingsFailure} from './rankingsApi';
 export const BENCHMARK = 74_610_431_012.27;
 export const GAME_VERSION = '0.9.0';
 export const MAX_SCORE = 1_000_000_000_000;
@@ -37,7 +38,7 @@ export function readPeak(storage:BoardStorage,userId:string):Peak {
  if(!raw)return {valuation:0,game_version:GAME_VERSION};
  const data=JSON.parse(raw);
  scoreValue(data.valuation);
- if(typeof data.game_version!=='string')throw new Error('Device leaderboard history could not be read.');
+ if(typeof data.game_version!=='string')throw new Error('Rankings history on this device could not be read.');
  return data;
 }
 export function rememberPeak(storage:BoardStorage,userId:string,value:number,version=GAME_VERSION):Peak {
@@ -50,14 +51,14 @@ export function rememberPeak(storage:BoardStorage,userId:string,value:number,ver
 }
 function entry(value:unknown):BoardEntry {
  const e=value as BoardEntry;
- if(!e||typeof e.public_id!=='string'||typeof e.display_name!=='string'||founderName(e.display_name)!==e.display_name||typeof e.game_version!=='string'||!Number.isFinite(Date.parse(e.achieved_at))||!Number.isSafeInteger(e.position)||e.position<1||e.verification!=='unverified')throw new Error('Leaderboard returned an invalid entry.');
+ if(!e||typeof e.public_id!=='string'||typeof e.display_name!=='string'||founderName(e.display_name)!==e.display_name||typeof e.game_version!=='string'||!Number.isFinite(Date.parse(e.achieved_at))||!Number.isSafeInteger(e.position)||e.position<1||e.verification!=='unverified')throw new Error('Rankings returned an invalid entry.');
  scoreValue(e.best_valuation);
  // Pick public fields explicitly: never render an arbitrary user/email payload.
  return {public_id:e.public_id,display_name:e.display_name,best_valuation:e.best_valuation,game_version:e.game_version,achieved_at:e.achieved_at,position:e.position,verification:'unverified'};
 }
 export function boardPage(value:unknown):BoardPage {
  const data=value as BoardPage;
- if(!data||!Array.isArray(data.entries)||data.entries.length>50||!Number.isSafeInteger(data.total)||data.total<0)throw new Error('Leaderboard response could not be read.');
+ if(!data||!Array.isArray(data.entries)||data.entries.length>50||!Number.isSafeInteger(data.total)||data.total<0)throw new Error('Rankings response could not be read.');
  return {entries:data.entries.map(entry),self:data.self?entry(data.self):null,total:data.total};
 }
 export class BoardController {
@@ -69,7 +70,7 @@ export class BoardController {
  private writing=false;
  private lastAttempt=-Infinity;
  constructor(readonly userId:string|null,private api:BoardApi,private storage:BoardStorage,private changed:(view:BoardView)=>void,private clock=()=>Date.now()){
-  if(userId){try{this.view.peak=readPeak(storage,userId).valuation;}catch{this.view.error='Device leaderboard history could not be read; server best is kept.';}}
+  if(userId){try{this.view.peak=readPeak(storage,userId).valuation;}catch{this.view.error='Rankings history on this device could not be read; server best is kept.';}}
  }
  stop(){this.active=false;}
  private emit(patch:Partial<BoardView>){if(!this.active)return;this.view={...this.view,...patch};this.changed(this.view);}
@@ -78,9 +79,7 @@ export class BoardController {
   try{const next=rememberPeak(this.storage,this.userId,value);if(next.valuation>this.view.peak)this.emit({peak:next.valuation});}catch(error){this.emit({error:error instanceof Error?error.message:'Could not preserve device peak.'});}
  }
  private failure(error:unknown){
-  const data=error as {code?:string;message?:string};
-  const unavailable=['PGRST202','42P01','42883'].includes(data?.code??'');
-  this.emit({status:unavailable?'unavailable':'error',error:unavailable?'Global scores are not enabled for this Supabase project yet. Your game and device peak are unchanged.':data?.message||'Leaderboard unavailable. Your game and best score are kept; retry when connected.'});
+  this.emit(rankingsFailure(error));
  }
  async refresh(offset=this.offset){
   if(!this.active||this.reading)return;
@@ -99,9 +98,9 @@ export class BoardController {
   if(name===undefined&&!this.view.self)return false; // Publishing is opt-in.
   let selected:string|undefined;
   try{selected=name===undefined?undefined:founderName(name);}catch(error){this.emit({error:(error as Error).message});return false;}
-  if(this.clock()-this.lastAttempt<BOARD_COOLDOWN_MS){if(name!==undefined)this.emit({error:'Please wait 10 seconds between leaderboard updates.'});return false;}
+  if(this.clock()-this.lastAttempt<BOARD_COOLDOWN_MS){if(name!==undefined)this.emit({error:'Please wait 10 seconds between Rankings updates.'});return false;}
   let peak:Peak;
-  try{peak=readPeak(this.storage,this.userId);if(this.view.peak>peak.valuation)peak={valuation:this.view.peak,game_version:GAME_VERSION};}catch{this.emit({error:'Could not read your device peak. No leaderboard update was sent.'});return false;}
+  try{peak=readPeak(this.storage,this.userId);if(this.view.peak>peak.valuation)peak={valuation:this.view.peak,game_version:GAME_VERSION};}catch{this.emit({error:'Could not read your device peak. No Rankings update was sent.'});return false;}
   if(peak.valuation===0){this.emit({error:'Play a saved game on this account before joining the board.'});return false;}
   if(selected===undefined&&this.view.self&&peak.valuation<=this.view.self.best_valuation)return false;
   this.writing=true;this.lastAttempt=this.clock();this.emit({writing:true,error:''});
