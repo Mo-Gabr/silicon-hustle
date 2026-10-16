@@ -120,8 +120,16 @@ test('offline browser: gameplay/cloud-save parity with main plus isolated board 
      assert.ok(await evaluate(`document.querySelector('.market').compareDocumentPosition(document.querySelector('.holdings'))&Node.DOCUMENT_POSITION_FOLLOWING`));
      await click(`document.querySelector('.portfolio-toggle')`);await sleep(30);
      assert.equal(await evaluate(`document.getElementById('portfolio-content').hidden`),false);
-     assert.equal(await evaluate(`Array.from(document.querySelectorAll('.holdings-table td')).every(cell=>cell.scrollWidth<=cell.clientWidth+1)`),true,'Every financial cell fits without clipping');
+     const compact=await evaluate(`(()=>{for(const sheet of document.styleSheets){const index=Array.from(sheet.cssRules).findIndex(rule=>rule.cssText.includes('.mobile-layout .holdings-table tbody tr'));if(index>=0){const css=sheet.cssRules[index].cssText;sheet.deleteRule(index);const before=document.querySelector('.holdings').getBoundingClientRect().height;sheet.insertRule(css,index);const after=document.querySelector('.holdings').getBoundingClientRect().height;return {before,after,reduction:(before-after)/before*100};}}throw Error('Compact rule missing');})()`);
+     console.log('Portfolio height '+interactive+': '+JSON.stringify(compact));assert.ok(compact.reduction>=28&&compact.reduction<=38,'Expanded portfolio is approximately one-third shorter');
+     const portfolioShot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip:await evaluate(`(()=>{const r=document.querySelector('.holdings').getBoundingClientRect();return {x:r.left+scrollX,y:r.top+scrollY,width:r.width,height:r.height,scale:1};})()`)},sessionId);await writeFile(join(root,'portfolio-'+interactive+'.png'),Buffer.from(portfolioShot.data,'base64'));console.log('Portfolio screenshot: '+join(root,'portfolio-'+interactive+'.png'));
+
+     assert.equal(await evaluate(`Array.from(document.querySelectorAll('.holdings-table td')).filter(cell=>cell.getClientRects().length).every(cell=>cell.scrollWidth<=cell.clientWidth+1)`),true,'Every financial cell fits without clipping');
      assert.equal(await evaluate(`document.querySelectorAll('.holdings-table tbody td').length`),6);
+     assert.deepEqual(await evaluate(`Array.from(document.querySelectorAll('.holdings-table tbody td')).map(cell=>cell.textContent.trim())`),['NVIDIA H100 SXM','1','$34,340','$34,000','$33,660','−$680'],'All figures retain their fee-aware values');
+     assert.equal(await evaluate(`Array.from(document.querySelectorAll('.holdings-table tfoot td')).filter(cell=>cell.getClientRects().length).length`),2,'Totals strip contains only cost basis and net sale value');
+     assert.equal(await evaluate(`(()=>{const cells=document.querySelectorAll('.holdings-table tbody td');return Math.abs(cells[0].getBoundingClientRect().top-cells[1].getBoundingClientRect().top)<1;})()`),true,'Quantity sits beside the hardware name');
+
      assert.equal(await evaluate(`getComputedStyle(document.querySelector('.chip-name-button')).minHeight`),'44px');
      await click(`document.querySelector('.portfolio-toggle')`);await click(`document.querySelector('.wire-toggle')`);await sleep(30);
      assert.equal(await evaluate(`document.getElementById('wire-content').hidden`),false);await click(`document.querySelector('.wire-toggle')`);

@@ -66,3 +66,23 @@
 /* The disclosure wrapper does not change the desktop fee-note presentation. */
 .holdings #portfolio-content>small{display:block;color:#90a79f;line-height:1.5;margin-top:12px;font-size:12px}
 @media(max-width:650px){.mobile-layout #portfolio-content>small{font-size:11px;margin-top:10px}}
+
+/* Compact expanded portfolio: mobile only. Keep the header's totals authoritative. */
+@media(max-width:650px){
+ .mobile-layout .holdings-table tbody tr{padding:4px 0;gap:0 10px}
+ .mobile-layout .holdings-table tbody td{padding:7px 0;line-height:1.4;font-size:15px}
+ .mobile-layout .holdings-table tbody td:before{margin-bottom:2px;font-size:12px}
+ .mobile-layout .holdings-table tbody td:first-child{grid-column:1;justify-content:center}
+ .mobile-layout .holdings-table tbody td:first-child:before{display:none}
+ .mobile-layout .holdings-table tbody td:nth-child(2){flex-direction:row;align-items:center;justify-content:flex-end;gap:6px}
+ .mobile-layout .holdings-table tbody td:nth-child(2):before{margin:0}
+ .mobile-layout .holdings-table .chip-name-button{padding:3px 0;line-height:1.3;min-height:44px}
+ .mobile-layout .holdings-table tfoot{background:transparent;border-top:1px solid #304943;margin-top:4px}
+ .mobile-layout .holdings-table tfoot tr{border:0;padding:8px 0 6px;gap:0 10px;font-size:11px}
+ .mobile-layout .holdings-table tfoot td{padding:0;line-height:1.3}
+ .mobile-layout .holdings-table tfoot td:before{margin-bottom:2px;font-size:10px}
+ .mobile-layout .holdings-table tfoot td:nth-child(3):before{content:'Cost basis'}
+ .mobile-layout .holdings-table tfoot td:nth-child(1),.mobile-layout .holdings-table tfoot td:nth-child(2),.mobile-layout .holdings-table tfoot td:nth-child(4),.mobile-layout .holdings-table tfoot td:nth-child(6){display:none}
+ .mobile-layout #portfolio-content{padding-bottom:8px}
+ .mobile-layout #portfolio-content>small{margin-top:6px;font-size:10px;line-height:1.35;color:#8ca69e}
+}
