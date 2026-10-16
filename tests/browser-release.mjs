@@ -15,7 +15,7 @@ const user={id:uid,aud:'authenticated',role:'authenticated',email:'synthetic@exa
 const game=()=>({month:3,cash:5000000,prices:Object.fromEntries(['l40s','a100','h100','h200','b200','mi300','mi325','gaudi'].map(k=>[k,34000])),positions:{},labs:0,headline:'SYNTHETIC ONLY',history:[],ended:false,ending:'',seed:42,threat:null,threatHistory:[],crisisResult:null});
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let available=true;try{await access(chrome);}catch{available=false;}
-test('offline browser: gameplay/cloud-save parity with main plus isolated board flows',{skip:!available?'Chrome not installed; set CHROME_BIN':false,timeout:90000},async()=>{
+test('offline browser: gameplay/cloud-save parity with main plus isolated board flows',{skip:!available?'Chrome not installed; set CHROME_BIN':false,timeout:120000},async()=>{
  const root=await mkdtemp(join(tmpdir(),'silicon-board-release-browser-'));
  for(const variant of ['main','release','missingurl','missingkey','missingboth']){
   await build({entryPoints:['src/main.tsx'],bundle:true,format:'esm',outdir:join(root,variant),entryNames:'app',jsx:'automatic',define:{'import.meta.env.VITE_SUPABASE_URL':(variant==='missingurl'||variant==='missingboth')?'undefined':JSON.stringify('https://supabase.test'),'import.meta.env.VITE_SUPABASE_ANON_KEY':(variant==='missingkey'||variant==='missingboth')?'undefined':JSON.stringify('sb_publishable_SYNTHETIC_ONLY')},plugins:variant==='main'?[{name:'baseline-main',setup(b){b.onLoad({filter:/\/src\/main\.tsx$/},()=>({contents:execFileSync('git',['show',base+':src/main.tsx'],{encoding:'utf8'}),loader:'tsx'}));}}]:[]});
@@ -52,20 +52,22 @@ test('offline browser: gameplay/cloud-save parity with main plus isolated board 
     }else if(url.pathname==='/rest/v1/rpc/get_billionaire_board'){
      state.reads++;if(state.readError){status=404;body={code:'PGRST202',message:'SYNTHETIC_PRIVATE_BACKEND_DETAIL'};}else body={entries:state.posted?[state.posted]:[],self:state.signed?state.posted:null,total:state.posted?1:0};
     }else if(url.pathname==='/rest/v1/rpc/submit_billionaire_score'){
-     state.submits++;assert.ok(state.signed);assert.equal(state.submits,1);const p=JSON.parse(request.postData);assert.equal(p.p_expected_user_id,uid);assert.equal(p.p_game_version,'0.9.0');assert.equal(p.p_display_name,'Synthetic Founder');assert.equal(p.p_valuation,Math.round(20000000+state.row.game_state.cash+state.row.game_state.positions.h100.qty*state.row.game_state.prices.h100));
+     state.submits++;assert.ok(state.signed);assert.ok(state.submits>=1&&state.submits<=(state.manualRetry?2:1));const p=JSON.parse(request.postData);assert.equal(p.p_expected_user_id,uid);assert.equal(p.p_game_version,'0.9.0');assert.equal(p.p_display_name,state.editName?'New Synthetic Founder':'Synthetic Founder');assert.equal(p.p_valuation,Math.max(state.posted?.best_valuation??0,Math.round(20000000+state.row.game_state.cash+state.row.game_state.positions.h100.qty*state.row.game_state.prices.h100)));
      if(state.submitError){status=403;body={code:'42501',message:'Synthetic permission denied'};}
      else {state.posted={public_id:'00000000-0000-4000-8000-000000000202',display_name:p.p_display_name,best_valuation:p.p_valuation,game_version:'0.9.0',position:1,achieved_at:'2026-10-16T00:00:00Z',verification:'unverified'};body=state.posted;}
     }else throw Error('Unexpected external endpoint');
    }catch{state.errors.push('unexpected intercepted request');status=500;body={message:'Synthetic route rejected'};}
    await send('Fetch.fulfillRequest',{requestId,responseCode:status,responseHeaders:[{name:'Content-Type',value:'application/json'},{name:'Access-Control-Allow-Origin',value:origin},{name:'Access-Control-Allow-Headers',value:'*'},{name:'Access-Control-Allow-Methods',value:'GET,POST,PATCH,OPTIONS'}],body:Buffer.from(JSON.stringify(body)).toString('base64')},m.sessionId);
   };
-  async function scenario(variant,{signed=false,empty=false,board=false,error=false,deviceChoice=false,noLocal=false,legacy=false,differentCloud=false,configurationMissing=false,readError=false,publicEntry=false,interactive=null}={}){
+  async function scenario(variant,{signed=false,empty=false,board=false,error=false,deviceChoice=false,noLocal=false,legacy=false,differentCloud=false,configurationMissing=false,readError=false,publicEntry=false,interactive=null,rankingsCase=null,boardWidth=null}={}){
    const {browserContextId}=await send('Target.createBrowserContext');const {targetId}=await send('Target.createTarget',{url:'about:blank',browserContextId});const {sessionId}=await send('Target.attachToTarget',{targetId,flatten:true});
    const state={signed,row:empty?null:{user_id:uid,game_state:(deviceChoice||differentCloud)?{...game(),month:4,cash:4000000}:game(),updated_at:'2026-10-15T00:00:00.123456Z'},posted:null,submits:0,reads:0,saves:[],errors:[],submitError:error,readError};states.set(sessionId,state);
+   if(rankingsCase){state.posted={public_id:'00000000-0000-4000-8000-000000000202',display_name:'Synthetic Founder',best_valuation:['published','rename'].includes(rankingsCase)?30000000:1000000,game_version:'0.9.0',position:1,achieved_at:'2026-10-16T00:00:00Z',verification:'unverified'};state.submitError=rankingsCase==='failed';state.manualRetry=rankingsCase==='failed';state.editName=rankingsCase==='rename';}
    if(publicEntry)state.posted={public_id:'00000000-0000-4000-8000-000000000303',display_name:'Synthetic Public Founder',best_valuation:1000,game_version:'0.9.0',position:1,achieved_at:'2026-10-16T00:00:00Z',verification:'unverified'};
    const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true},sessionId);if(r.exceptionDetails)throw Error('Browser assertion expression failed');return r.result.value;};
    const wait=async expression=>{for(let i=0;i<100;i++){if(await evaluate(expression))return;await sleep(50);}throw Error('Timed out: '+expression+'; sanitized status='+await evaluate(`document.querySelector('.sh-account [role="status"]')?.textContent`)+'; board notice='+await evaluate(`document.querySelector('.board-notice')?.textContent`)+'; submit count='+state.submits+'; test errors='+state.errors.join(',')+'; intercepted methods='+state.saves.map(x=>x.method).join(','));};
    await send('Page.enable',{},sessionId);await send('Runtime.enable',{},sessionId);await send('Fetch.enable',{patterns:[{urlPattern:'https://*',requestStage:'Request'}]},sessionId);
+   if(boardWidth)await send('Emulation.setDeviceMetricsOverride',{width:boardWidth,height:boardWidth===1280?900:boardWidth===320?568:844,deviceScaleFactor:1,mobile:boardWidth!==1280},sessionId);
    if(interactive==='desktop')await send('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false},sessionId);
    if(interactive==='mobile'||interactive==='small')await send('Emulation.setDeviceMetricsOverride',{width:interactive==='small'?320:390,height:interactive==='small'?568:844,deviceScaleFactor:1,mobile:true},sessionId);
    const entries={'silicon-hustle-welcome-v09':'yes','silicon-hustle-tutorial-seen':'yes','silicon-hustle-v04':JSON.stringify(game())};
@@ -85,23 +87,62 @@ test('offline browser: gameplay/cloud-save parity with main plus isolated board 
    if(signed)await wait(`document.querySelector('.sh-account [role="status"]').textContent.includes('SYNCED')`);
    await sleep(signed?1100:50);
    const afterGame=await evaluate(`JSON.parse(localStorage.getItem('silicon-hustle-v04'))`);
+   if(rankingsCase==='blocked')state.row.game_state={...afterGame,cash:afterGame.cash+1};
    const saveTraffic=structuredClone(state.saves),savedBefore=JSON.stringify(state.row),localBefore=JSON.stringify(afterGame);
    if(board){
     await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='RANKINGS').click()`);await wait(`!!document.querySelector('.board-empty')||!!document.querySelector('.board-rankings')||!!document.querySelector('.board-notice')`);
     assert.equal(await evaluate(`document.getElementById('board-title').textContent`),'RANKINGS');
     assert.equal(await evaluate(`document.querySelector('.board-refresh').getAttribute('aria-label')`),'Refresh Rankings');
+    assert.equal(await evaluate(`document.querySelectorAll('.board-disclosure').length`),1);assert.equal(await evaluate(`document.querySelector('.board-disclosure').getClientRects().length>0`),true);assert.equal(await evaluate(`(document.querySelector('.billionaire-board').innerText.match(/Early Access/g)||[]).length`),1);
+    assert.equal(await evaluate(`document.querySelector('.board-disclosure').textContent`),'Early Access · Rankings are based on player-submitted scores.');
+    assert.equal(await evaluate(`!!document.querySelector('.board-integrity')`),false);
+    assert.equal(await evaluate(`/UNVERIFIED|v[0-9]+[.][0-9]+[.][0-9]+/i.test(document.querySelector('.board-rankings')?.textContent??'')`),false);
+
     if(configurationMissing){assert.equal(state.reads,0);assert.match(await evaluate(`document.querySelector('.board-notice').textContent`),/Rankings is not configured for this deployment/);}
     if(readError){assert.equal(state.reads,1);const notice=await evaluate(`document.querySelector('.board-notice').textContent`);assert.match(notice,/Rankings could not be reached/);assert.ok(!notice.includes('SYNTHETIC_PRIVATE_BACKEND_DETAIL'));}
     assert.equal(state.submits,0,'Login/page/game actions cannot publish automatically');
     if(publicEntry){assert.equal(state.reads,1);assert.equal(await evaluate(`document.querySelector('.board-rankings b')?.textContent`),'Synthetic Public Founder');assert.equal(await evaluate(`document.querySelector('.board-position')?.textContent`),'#1');assert.equal(await evaluate(`document.querySelector('.board-notice')?.textContent??''`),'');}
-    if(signed){
+    if(signed&&!rankingsCase){
+     await wait(`!!document.querySelector('.board-name form button')&&!document.querySelector('.board-name form button').disabled`);
      await evaluate(`const i=document.querySelector('#founder-name');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,'Synthetic Founder');i.dispatchEvent(new Event('input',{bubbles:true}));`);
      await sleep(50);await evaluate(`document.querySelector('.board-name form').requestSubmit()`);
-     if(error){await wait(`!!document.querySelector('.board-notice')&&document.querySelector('.board-notice').textContent.includes('Rankings access was denied')`);assert.equal(state.posted,null);}
+     if(error){await wait(`!!document.querySelector('.board-notice')&&document.querySelector('.board-notice').textContent.includes('Rankings access was denied')`);assert.equal(state.posted,null);assert.equal(await evaluate(`document.getElementById('founder-name').value`),'Synthetic Founder');assert.equal(await evaluate(`document.querySelector('.board-name form button').disabled`),false);}
      else {await wait(`!!document.querySelector('.board-rankings')`);assert.equal(state.posted.position,1);}
      assert.equal(state.submits,1);assert.equal(JSON.stringify(state.row),savedBefore,'Publishing cannot mutate cloud save');assert.equal(await evaluate(`JSON.stringify(JSON.parse(localStorage.getItem('silicon-hustle-v04')))`),localBefore,'Publishing cannot mutate device save');
      assert.equal(await evaluate(`document.querySelector('.board-rankings')?.textContent.includes('synthetic@example.invalid')??false`),false);
-    }else {assert.equal(await evaluate(`!!document.querySelector('#founder-name')`),false);assert.equal(state.submits,0);}
+    }else if(!signed){assert.equal(await evaluate(`!!document.querySelector('#founder-name')`),false);assert.equal(state.submits,0);}
+   }
+   if(rankingsCase){
+    await wait(`!!document.querySelector('.board-founder b')&&document.querySelector('.board-founder b').textContent==='Synthetic Founder'`);
+    assert.equal(await evaluate(`document.querySelector('.board-name>span').textContent`),'YOUR FOUNDER NAME');
+    assert.equal(await evaluate(`!!document.querySelector('.board-name form')`),false);
+    if(rankingsCase==='published'){
+     await sleep(50);assert.equal(await evaluate(`!!document.querySelector('.board-publish')`),false);assert.equal(state.submits,0);
+    }else if(rankingsCase==='rename'){
+     await evaluate(`Array.from(document.querySelectorAll('.board-name button')).find(b=>b.textContent==='EDIT NAME').click()`);await wait(`!!document.getElementById('founder-name')`);assert.equal(await evaluate(`document.getElementById('founder-name').value`),'Synthetic Founder');
+     await evaluate(`Array.from(document.querySelectorAll('.board-name button')).find(b=>b.textContent==='CANCEL').click()`);await wait(`!document.getElementById('founder-name')`);assert.equal(state.submits,0);
+     await evaluate(`Array.from(document.querySelectorAll('.board-name button')).find(b=>b.textContent==='EDIT NAME').click()`);await wait(`!!document.getElementById('founder-name')`);
+     await evaluate(`(()=>{const input=document.getElementById('founder-name');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,'New Synthetic Founder');input.dispatchEvent(new Event('input',{bubbles:true}));})()`);await sleep(30);await evaluate(`document.querySelector('.board-name form').requestSubmit()`);await wait(`document.querySelector('.board-founder b')?.textContent==='New Synthetic Founder'`);assert.equal(state.submits,1);assert.equal(state.posted.best_valuation,30000000);
+    }else {
+     if(rankingsCase==='blocked'){
+      await wait(`document.querySelector('.board-publish-context')?.textContent.includes('choosing your save in Account')`);assert.equal(await evaluate(`!!document.querySelector('.board-publish')`),false);assert.equal(state.submits,0);
+      state.row.game_state=structuredClone(afterGame);await evaluate(`Array.from(document.querySelectorAll('.board-name button')).find(b=>b.textContent==='CHECK AGAIN').click()`);
+     }
+     await wait(`!!document.querySelector('.board-publish')&&!document.querySelector('.board-publish').disabled`);assert.equal(state.submits,0,'Eligibility checks cannot submit');
+     if(rankingsCase!=='blocked'){
+      await evaluate(`document.querySelector('.board-publish').click()`);
+      if(rankingsCase==='failed'){
+       await wait(`document.querySelector('.board-notice')?.textContent.includes('Rankings access was denied')`);assert.equal(state.posted.best_valuation,1000000);assert.equal(await evaluate(`JSON.parse(localStorage.getItem('silicon-hustle-board-release-v1:${uid}')).valuation`),24999660);assert.equal(await evaluate(`document.querySelector('.board-publish').disabled`),false);await sleep(100);assert.equal(state.submits,1,'No automatic retries');
+       state.submitError=false;await evaluate(`(()=>{const now=Date.now;Date.now=()=>now()+11000;})()`);await evaluate(`document.querySelector('.board-publish').click()`);
+      }
+      await wait(`!document.querySelector('.board-publish')`);assert.equal(state.submits,rankingsCase==='failed'?2:1);assert.ok(state.posted.best_valuation>1000000);
+     }
+    }
+    assert.ok(state.saves.slice(saveTraffic.length).every(request=>request.method==='GET'),'Publication availability only reads saves');assert.deepEqual(JSON.parse(await evaluate(`localStorage.getItem('silicon-hustle-v04')`)),afterGame);
+    assert.equal(await evaluate(`!!document.querySelector('.board-publish')`),rankingsCase==='blocked','Only the still-pending recovered peak retains its publish control');
+    assert.equal(await evaluate(`document.documentElement.scrollWidth>innerWidth`),false,'Rankings fits viewport');
+    assert.equal(await evaluate(`Array.from(document.querySelectorAll('.board-rankings li,.board-founder')).every(row=>row.scrollWidth<=row.clientWidth+1)`),true);
+    const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip:await evaluate(`(()=>{const r=document.querySelector('.billionaire-board').getBoundingClientRect();return {x:r.left+scrollX,y:r.top+scrollY,width:r.width,height:r.height,scale:1};})()`)},sessionId);await writeFile(join(root,'rankings-'+rankingsCase+'-'+(boardWidth??'desktop')+'.png'),Buffer.from(shot.data,'base64'));console.log('PASS: Rankings '+rankingsCase+' '+(boardWidth??'desktop')+'; screenshot '+join(root,'rankings-'+rankingsCase+'-'+(boardWidth??'desktop')+'.png'));
    }
    if(interactive){
     const saved=()=>evaluate(`JSON.parse(localStorage.getItem('silicon-hustle-v04'))`);
@@ -209,6 +250,7 @@ test('offline browser: gameplay/cloud-save parity with main plus isolated board 
   for(const variant of ['missingurl','missingkey','missingboth']){await scenario(variant,{board:true,configurationMissing:true});console.log('PASS: missing Preview configuration '+variant+' makes no RPC and shows configuration error');}
   await scenario('release',{board:true,readError:true});console.log('PASS: real RPC-not-found is distinct from missing configuration and does not echo backend details');
   await scenario('release',{signed:true,board:true,error:true});console.log('PASS: synthetic submit permission error has no retries or save mutations');
+  for(const boardWidth of [1280,390,320])for(const rankingsCase of ['published','eligible','blocked','failed','rename'])await scenario('release',{signed:true,board:true,rankingsCase,boardWidth});
   await send('Browser.close');
  }finally{ws?.close();child.kill('SIGTERM');await new Promise(r=>server.close(r));}
 });

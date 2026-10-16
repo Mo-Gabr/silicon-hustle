@@ -1,0 +1,23 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {execFileSync} from 'node:child_process';
+import ts from 'typescript';
+const source=readFileSync('src/rankingsPresentation.ts','utf8');
+const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
+const {pendingPublication,savedPeakExplanation}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
+const view=(score=100,peak=100)=>({entries:[],self:{best_valuation:score},peak,status:'ready',loadedAt:'2026-10-16T00:00:00Z',writing:false,error:''});
+test('publish visibility needs a verified pending peak and a known server record',()=>{
+ assert.equal(pendingPublication(view(),{status:'ready',value:101}),true);
+ for(const value of [0,99,100])assert.equal(pendingPublication(view(),{status:'ready',value}),false);
+ for(const value of [undefined,NaN,Infinity,-1,1.2])assert.equal(pendingPublication(view(),{status:'ready',value}),false);
+ for(const check of [{status:'checking'},{status:'blocked',value:200}])assert.equal(pendingPublication(view(),check),false);
+ assert.equal(pendingPublication({...view(),loadedAt:null},{status:'ready',value:200}),false);
+ assert.equal(pendingPublication({...view(),status:'unavailable'},{status:'ready',value:200}),false);
+});
+test('a previously attributed unpublished peak remains actionable with a lower current game',()=>{assert.equal(pendingPublication(view(100,200),{status:'ready',value:50}),true);assert.equal(pendingPublication(view(200,200),{status:'ready',value:50}),false);});
+test('failed submissions retain manual retry visibility without claiming publication',()=>{const failed={...view(100,200),status:'error',error:'Network error'};assert.equal(pendingPublication(failed,{status:'ready',value:200}),true);assert.equal(failed.self.best_valuation,100);});
+test('first publication needs a positive verified or previously attributed saved peak',()=>{const first={...view(0,0),self:null};assert.equal(pendingPublication(first,{status:'ready',value:25}),true);assert.equal(pendingPublication(first,{status:'ready',value:0}),false);});
+test('ownership issues produce concise recovery instructions without exposing backend data',()=>{assert.match(savedPeakExplanation(Error('Your displayed game must match this account’s cloud save.')),/choosing your save in Account/);assert.match(savedPeakExplanation(Error('Open your saved game before publishing.')),/Open your saved game/);assert.match(savedPeakExplanation(Error('Account changed during verification.')),/signed-in account/);assert.ok(!savedPeakExplanation(Error('PRIVATE_BACKEND_DETAIL')).includes('PRIVATE_BACKEND_DETAIL'));});
+test('cleanup leaves trading, saves, authentication, ranking rules and SQL byte-identical to release base',()=>{for(const path of ['src/main.tsx','src/style.css','src/ChipTradingPanel.tsx','src/chipTrading.ts','src/chip-trading.css','src/AuthGate.tsx','src/auth.css','src/boardAttribution.ts','src/leaderboardCore.ts','src/rankingsApi.ts','supabase/schema.sql','supabase/migrations/202610150002_billionaire_board.sql','capacitor.config.ts'])assert.equal(readFileSync(path,'utf8'),execFileSync('git',['show','66b70373e86cce1b8c417125250b48dae82b0ac1:'+path],{encoding:'utf8'}),path);});
+test('the submission callback and RPC contract remain exactly unchanged',()=>{const current=readFileSync('src/BillionaireBoard.tsx','utf8'),previous=execFileSync('git',['show','66b70373e86cce1b8c417125250b48dae82b0ac1:src/BillionaireBoard.tsx'],{encoding:'utf8'});for(const pattern of [/ const rename=useCallback\(async\(name:string\)=>\{[\s\S]*?\n \},\[\]\);/,/const api:BoardApi=\{[\s\S]*?\n\};/]){assert.ok(current.match(pattern));assert.equal(current.match(pattern)[0],previous.match(pattern)[0]);}});
