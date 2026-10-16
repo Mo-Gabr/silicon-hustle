@@ -67,7 +67,7 @@ test('offline browser: gameplay/cloud-save parity with main plus isolated board 
    const wait=async expression=>{for(let i=0;i<100;i++){if(await evaluate(expression))return;await sleep(50);}throw Error('Timed out: '+expression+'; sanitized status='+await evaluate(`document.querySelector('.sh-account [role="status"]')?.textContent`)+'; board notice='+await evaluate(`document.querySelector('.board-notice')?.textContent`)+'; submit count='+state.submits+'; test errors='+state.errors.join(',')+'; intercepted methods='+state.saves.map(x=>x.method).join(','));};
    await send('Page.enable',{},sessionId);await send('Runtime.enable',{},sessionId);await send('Fetch.enable',{patterns:[{urlPattern:'https://*',requestStage:'Request'}]},sessionId);
    if(interactive==='desktop')await send('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false},sessionId);
-   if(interactive==='mobile')await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true},sessionId);
+   if(interactive==='mobile'||interactive==='small')await send('Emulation.setDeviceMetricsOverride',{width:interactive==='small'?320:390,height:interactive==='small'?568:844,deviceScaleFactor:1,mobile:true},sessionId);
    const entries={'silicon-hustle-welcome-v09':'yes','silicon-hustle-tutorial-seen':'yes','silicon-hustle-v04':JSON.stringify(game())};
    if(interactive){const g=game();g.month=2;entries['silicon-hustle-v04']=JSON.stringify(g);}
    if(noLocal)delete entries['silicon-hustle-v04'];
@@ -110,6 +110,31 @@ test('offline browser: gameplay/cloud-save parity with main plus isolated board 
     const setQuantity=async n=>{await evaluate(`(()=>{const q=document.getElementById('chip-quantity');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(q,${JSON.stringify(String(n))});q.dispatchEvent(new Event('input',{bubbles:true}));})()`);await sleep(40);};
     const open=async()=>{await evaluate(`(()=>{const card=document.querySelectorAll('.market .asset')[2];card.focus();card.click();})()`);await wait(`!!document.querySelector('.chip-trading-panel[open]')`);};
     const key=async(key,code,vk,modifiers=0)=>{await send('Input.dispatchKeyEvent',{type:'keyDown',key,code,windowsVirtualKeyCode:vk,modifiers},sessionId);await send('Input.dispatchKeyEvent',{type:'keyUp',key,code,windowsVirtualKeyCode:vk,modifiers},sessionId);};
+    if(interactive!=='desktop'){
+     const beforeLayout=JSON.stringify(await saved());
+     const layout=await evaluate(`(()=>{const r=document.querySelector('.market .asset').getBoundingClientRect();return {top:r.top,bottom:r.bottom,height:innerHeight,width:innerWidth,overflow:document.documentElement.scrollWidth>innerWidth};})()`);
+     assert.ok(layout.top<430&&layout.bottom<layout.height,'Market first row is visible without scrolling');assert.equal(layout.overflow,false,'Page fits viewport');
+     assert.equal(await evaluate(`document.querySelector('.market-nav').hidden`),true);
+     assert.equal(await evaluate(`document.querySelector('.portfolio-toggle').getAttribute('aria-expanded')`),'false');
+     assert.equal(await evaluate(`document.getElementById('portfolio-content').hidden`),true);
+     assert.ok(await evaluate(`document.querySelector('.market').compareDocumentPosition(document.querySelector('.holdings'))&Node.DOCUMENT_POSITION_FOLLOWING`));
+     await click(`document.querySelector('.portfolio-toggle')`);await sleep(30);
+     assert.equal(await evaluate(`document.getElementById('portfolio-content').hidden`),false);
+     assert.equal(await evaluate(`Array.from(document.querySelectorAll('.holdings-table td')).every(cell=>cell.scrollWidth<=cell.clientWidth+1)`),true,'Every financial cell fits without clipping');
+     assert.equal(await evaluate(`document.querySelectorAll('.holdings-table tbody td').length`),6);
+     assert.equal(await evaluate(`getComputedStyle(document.querySelector('.chip-name-button')).minHeight`),'44px');
+     await click(`document.querySelector('.portfolio-toggle')`);await click(`document.querySelector('.wire-toggle')`);await sleep(30);
+     assert.equal(await evaluate(`document.getElementById('wire-content').hidden`),false);await click(`document.querySelector('.wire-toggle')`);
+     await evaluate(`Array.from(document.querySelectorAll('.topnav button')).find(b=>b.textContent.startsWith('AI LAB')).click()`);await sleep(30);
+     assert.equal(await evaluate(`document.querySelector('.market-nav').hidden`),false,'Market remains reachable from other tabs');await click(`document.querySelector('.market-nav')`);await sleep(30);
+     assert.equal(JSON.stringify(await saved()),beforeLayout,'Layout controls never save or mutate game state');
+     await evaluate(`document.querySelector('.market .asset').scrollIntoView({block:'center'})`);const touch=await evaluate(`(()=>{const r=document.querySelector('.market .asset').getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2};})()`);await send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[touch]},sessionId);await send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]},sessionId);await wait(`!!document.querySelector('.chip-trading-panel[open]')`);assert.ok(await evaluate(`document.getElementById('chip-panel-title').textContent.includes('L40S')`));await click(`document.querySelector('.chip-close')`);await wait(`!document.querySelector('.chip-trading-panel')`);assert.equal(JSON.stringify(await saved()),beforeLayout,'Touch selection never saves');
+     await evaluate(`window.scrollTo(0,0)`);
+     const shot=await send('Page.captureScreenshot',{format:'png'},sessionId);await writeFile(join(root,'mobile-market-'+interactive+'.png'),Buffer.from(shot.data,'base64'));console.log('Mobile market screenshot: '+join(root,'mobile-market-'+interactive+'.png'));
+    }else {
+     assert.equal(await evaluate(`!!document.querySelector('.portfolio-toggle')`),false);
+     assert.ok(await evaluate(`document.querySelector('.holdings').compareDocumentPosition(document.querySelector('.market'))&Node.DOCUMENT_POSITION_FOLLOWING`),'Desktop keeps portfolio first');
+    }
     const beforeOpen=JSON.stringify(await saved());await open();
     assert.equal(JSON.stringify(await saved()),beforeOpen,'Opening a chip must not save or trade');
     assert.equal(await text('chip-monthly-change'),'Unavailable');
@@ -144,8 +169,8 @@ test('offline browser: gameplay/cloud-save parity with main plus isolated board 
     assert.equal(await evaluate(`Array.from(document.querySelectorAll('.chip-sides button')).find(b=>b.textContent==='SELL').disabled`),true);
     await key('Escape','Escape',27);await wait(`!document.querySelector('.chip-trading-panel')`);
     await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent.startsWith('BUY ·')).click()`);await sleep(40);
-    await click(`document.querySelector('.chip-name-button')`);await wait(`!!document.querySelector('.chip-trading-panel[open]')`);
-    const rect=await evaluate(`JSON.stringify((()=>{const r=document.querySelector('.chip-trading-panel').getBoundingClientRect();return {left:r.left,right:r.right,bottom:r.bottom,width:innerWidth,height:innerHeight};})())`);const r=JSON.parse(rect);assert.ok(r.left>=0&&r.right<=r.width+1&&r.bottom<=r.height+1);if(interactive==='mobile')assert.ok(Math.abs(r.bottom-r.height)<2,'Mobile sheet is anchored at the bottom');
+    if(interactive!=='desktop'){await click(`document.querySelector('.portfolio-toggle')`);await sleep(30);}await click(`document.querySelector('.chip-name-button')`);await wait(`!!document.querySelector('.chip-trading-panel[open]')`);
+    const rect=await evaluate(`JSON.stringify((()=>{const r=document.querySelector('.chip-trading-panel').getBoundingClientRect();return {left:r.left,right:r.right,bottom:r.bottom,width:innerWidth,height:innerHeight};})())`);const r=JSON.parse(rect);assert.ok(r.left>=0&&r.right<=r.width+1&&r.bottom<=r.height+1);if(interactive!=='desktop')assert.ok(Math.abs(r.bottom-r.height)<2,'Mobile sheet is anchored at the bottom');
     const beforeBackdrop=JSON.stringify(await saved());await send('Input.dispatchMouseEvent',{type:'mousePressed',x:1,y:1,button:'left',clickCount:1},sessionId);await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:1,y:1,button:'left',clickCount:1},sessionId);await wait(`!document.querySelector('.chip-trading-panel')`);assert.equal(JSON.stringify(await saved()),beforeBackdrop);
     const previous=(await saved()).prices;await evaluate(`Array.from(document.querySelectorAll('button.next')).find(b=>b.textContent.startsWith('NEXT MONTH')).click()`);await wait(`JSON.parse(localStorage.getItem('silicon-hustle-v04')).month===3`);
     g=await saved();assert.deepEqual(g.previousMarket,{forMonth:3,prices:previous});
@@ -171,7 +196,7 @@ test('offline browser: gameplay/cloud-save parity with main plus isolated board 
   for(const options of [{signed:false},{signed:false,legacy:true},{signed:true},{signed:true,noLocal:true},{signed:true,differentCloud:true},{signed:true,empty:true},{signed:true,deviceChoice:true}]){
    const original=await scenario('main',options),release=await scenario('release',{...options,board:true});assert.deepEqual(release.afterGame,original.afterGame);assert.deepEqual(release.saveTraffic,original.saveTraffic,'Original save request shapes and payloads must match main');console.log('PASS: baseline gameplay/save parity '+JSON.stringify(options));
   }
-  for(const interactive of ['desktop','mobile'])await scenario('release',{interactive});
+  for(const interactive of ['desktop','mobile','small'])await scenario('release',{interactive});
   await scenario('release',{board:true,publicEntry:true});console.log('PASS: configured anonymous client renders a populated Rankings response with rank, without sign-in, save requests or score writes');
   for(const variant of ['missingurl','missingkey','missingboth']){await scenario(variant,{board:true,configurationMissing:true});console.log('PASS: missing Preview configuration '+variant+' makes no RPC and shows configuration error');}
   await scenario('release',{board:true,readError:true});console.log('PASS: real RPC-not-found is distinct from missing configuration and does not echo backend details');
