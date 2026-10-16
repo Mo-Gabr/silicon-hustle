@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test tests/*.test.mjs",
+    "test:browser": "node --test tests/browser-release.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^7.1.2",
