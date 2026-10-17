@@ -92,9 +92,31 @@ test('offline browser: gameplay/cloud-save parity with main plus isolated board 
     let result=await saved();assert.equal(result.gamble.decision,'pending');assert.equal(result.month,30);const standard=structuredClone(result.gamble.standardResult);const pending=JSON.stringify(result);
     await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27},sessionId);await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27},sessionId);assert.equal(JSON.stringify(await saved()),pending);assert.equal(await evaluate(`document.querySelector('.company-dialog').open`),true);
     await reload();assert.equal(await evaluate(`document.querySelector('.company-dialog').open`),true);
-    await press('DOUBLE DOWN.');assert.equal((await saved()).gamble.decision,'extend');await wait(`!!document.querySelector('.enterprise')`);
+    const capture=async name=>{const shot=await send('Page.captureScreenshot',{format:'png'},sessionId);const path=join(root,name+'-'+boardWidth+'.png');await writeFile(path,Buffer.from(shot.data,'base64'));console.log('UI screenshot: '+path);};
+    const safeTop=boardWidth===1280?0:59,safeBottom=boardWidth===1280?0:34;
+    await evaluate(`document.documentElement.style.setProperty('--sh-safe-top','${safeTop}px');document.documentElement.style.setProperty('--sh-safe-bottom','${safeBottom}px')`);
+    const assertDialogSafe=async()=>{const rect=await evaluate(`(()=>{const d=document.querySelector('.company-dialog'),r=d.getBoundingClientRect();return {top:r.top,bottom:r.bottom,width:d.clientWidth,scrollWidth:d.scrollWidth,height:innerHeight};})()`);assert.ok(rect.top>=safeTop+11);assert.ok(rect.bottom<=rect.height-safeBottom-11);assert.ok(rect.scrollWidth<=rect.width+1);};
+    assert.equal(await evaluate(`document.querySelector('.gamble-valuation strong').textContent`),'$175.52M');
+    assert.equal(await evaluate(`document.querySelector('.company-dialog details').open`),false);
+    assert.match(await evaluate(`document.querySelector('.company-dialog').textContent`),/You hit \$100M. The board wants an exit. Your ego wants a billion./);
+    await assertDialogSafe();await capture('choice-compact');
+    if(!signed){await evaluate(`document.documentElement.style.fontSize='32px'`);await assertDialogSafe();await evaluate(`document.querySelector('.gamble-actions button:last-child').scrollIntoView({block:'center'})`);await capture('choice-large-text');await evaluate(`document.documentElement.style.fontSize=''`);}
+
+    await press('DOUBLE DOWN ·');assert.equal((await saved()).gamble.decision,'extend');await wait(`!!document.querySelector('.enterprise')`);
     assert.equal(await evaluate(`document.documentElement.scrollWidth<=innerWidth`),true);
     assert.equal(await evaluate(`document.querySelectorAll('.enterprise-focuses input').length`),6);
+    assert.equal(await evaluate(`document.querySelectorAll('.enterprise-metrics>div').length`),3);
+    assert.equal(await evaluate(`document.querySelector('.enterprise-details').open`),false);
+    assert.deepEqual(await evaluate(`Array.from(document.querySelectorAll('.focus-heading b'),e=>e.textContent)`),['LAND A PILOT','WIN ENTERPRISE','STRATEGIC PARTNER','EXPAND CAPACITY','IMPROVE RELIABILITY','OPERATE']);
+    assert.equal(await evaluate(`document.querySelector('input[value="enterprise"]').disabled`),true);
+    assert.equal(await evaluate(`Array.from(document.querySelectorAll('.next')).filter(e=>e.textContent.startsWith('NEXT MONTH')).length`),1);
+    const compact=await evaluate(`(()=>{const e=document.querySelector('.enterprise');return {height:e.getBoundingClientRect().height,maxRow:Math.max(...Array.from(e.querySelectorAll('.enterprise-focuses label'),r=>r.getBoundingClientRect().height))};})()`);
+    assert.ok(compact.height<700,JSON.stringify(compact));assert.ok(compact.maxRow<110);console.log('Compact enterprise '+boardWidth+': '+JSON.stringify(compact));
+    const beforeDetails=JSON.stringify(await saved());
+    await evaluate(`document.querySelector('.enterprise-details summary').click()`);assert.equal(await evaluate(`document.querySelector('.enterprise-details').open`),true);assert.equal(JSON.stringify(await saved()),beforeDetails);
+    await evaluate(`document.querySelector('.enterprise-details summary').click();document.querySelector('.enterprise').scrollIntoView({block:'start'})`);await capture('enterprise-compact');
+    if(!signed){await evaluate(`document.documentElement.style.fontSize='32px'`);assert.equal(await evaluate(`document.documentElement.scrollWidth<=innerWidth`),true);assert.equal(await evaluate(`Array.from(document.querySelectorAll('.enterprise-focuses label')).every(e=>e.getBoundingClientRect().height>=44&&e.scrollWidth<=e.clientWidth+1)`),true);assert.equal(await evaluate(`Array.from(document.querySelectorAll('.enterprise-metrics>div')).every(e=>e.scrollWidth<=e.clientWidth+1)`),true);await capture('enterprise-large-text');await evaluate(`document.documentElement.style.fontSize=''`);}
+
     await evaluate(`document.querySelector('input[value="pilot"]').click()`);await sleep(60);assert.equal((await saved()).gamble.enterprise.focus,'pilot');
     await press('NEXT MONTH');assert.equal((await saved()).month,31);assert.equal((await saved()).gamble.enterprise.ledger.length,1);await press('CONTINUE PLAYING');
     result=await saved();await reload();assert.equal(JSON.stringify(await saved()),JSON.stringify(result),'Reload cannot replay settlement or fees');

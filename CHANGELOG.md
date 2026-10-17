@@ -20,7 +20,13 @@ This initial baseline summarizes major features already completed. It does not a
 
 ### Changed
 
+- Compacted the Founder’s Gamble decision and enterprise gameplay into the existing terminal style: short choice copy, selectable action rows, three summary metrics, and collapsed financial Details. Large text reflows on narrow screens.
+
 - Four valuation-based losing stories, with timing adapted to early exits and Month 42, and final values displayed in millions or billions. Original trading, lab economics, authentication and cloud-save infrastructure remain unchanged.
 
 - Mobile gameplay puts Market first, with compact financial summaries, an expandable portfolio, and expandable Market Wire.
 - Rankings uses a compact founder-name section, contextual publishing controls, and one Early Access disclosure beneath the leaderboard instead of repeated verification and version badges.
+
+### Fixed
+
+- Reserved iPhone safe areas outside decision/report overlays and protected status-bar/home-indicator regions while scrolling.
