@@ -15,6 +15,23 @@ A fictional AI hardware trading and startup simulator. Start with **$5M cash** a
 
 Hardware prices, companies' offers, financial outcomes, and startup valuations are simulated for play. Silicon Hustle is satire, with no affiliation to the hardware makers, acquirers, or publications depicted.
 
+## The Founder’s Gamble and Build the Enterprise
+
+The original 30-month economy, fees, hardware trades, lab upgrades, and crises remain unchanged. A newly completed Month 30 company worth at least **$100M** gets a choice: **Take the Money & Run**, or **Double Down** for one optional chapter ending at **Month 42**. Previously completed legacy saves stay completed.
+
+Your **Month 30 victory and standard Rankings peak are frozen before the choice**. Extended gains, early exits, losses, and bankruptcy are recorded separately and never replace that standard result. Publishing remains manual and requires the same account and matching-cloud-save checks. There is no separate public extended leaderboard.
+
+In **Build the Enterprise**, choose a monthly focus: land pilots, win enterprise customers, pursue strategic partnerships, expand delivery capacity, improve reliability, or consolidate. Choices have personality—and consequences: customer bids can fail, idle capacity costs money, and service incidents hurt billing and valuation. The screen shows cash, recurring revenue, fixed and delivery costs, capacity, reliability, incident risk, valuation multiples, and projected cash flow. Selecting a focus is planning; **NEXT MONTH** pays and settles it once. Unaffordable plans block advancement until changed or funded. Existing lab income and trading continue under their original rules.
+
+- **Unicorn:** reach **$1 billion** during Months 31–42. Once earned, the achievement stays recorded even if valuation falls.
+- **Legendary MOGABR:** actually finish **Month 42** at **$2 billion or more**, with a profitable original AI lab and no bankruptcy. An earlier peak or voluntary early exit does not qualify. This achievement is distinct from the Rankings developer benchmark.
+- **Early exit:** confirm an exit to record the extended result and stop further months and revenue. Canceling does not change the game.
+- **Dynamic losing endings:** four satirical stories reflect the final valuation, with timing adapted to the ending month. Bankruptcy and fraud retain priority.
+
+New decisions, contracts, monthly settlements, achievements, and both outcomes travel in the existing local/cloud JSON save. No database migration is required. A normal reload does not replay growth revenue, investment, or decisions. This is save-level persistence, not irreversible server enforcement: deliberately restoring an older snapshot can rewind the chapter, and an old app bundle does not understand the extension. Use updated clients on all devices and resolve save conflicts carefully. Existing native authentication and cross-device validation limitations still apply.
+
+The same React screens and TypeScript rules power web and Capacitor iOS. Enterprise balance parameters live in `src/foundersGamble.ts` under `ENTERPRISE_BALANCE`. Contract and incident outcomes are deterministic per saved seed/month/channel; restoring an older snapshot can still allow decisions with foreknowledge. Financial multiples are fictional game balance, not investment guidance.
+
 ## Interactive chip trading
 
 Click or tap a Market card or an owned hardware name to open the shared trading panel: a compact desktop dialog or mobile bottom sheet.

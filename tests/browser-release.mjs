@@ -52,14 +52,14 @@ test('offline browser: gameplay/cloud-save parity with main plus isolated board 
     }else if(url.pathname==='/rest/v1/rpc/get_billionaire_board'){
      state.reads++;if(state.readError){status=404;body={code:'PGRST202',message:'SYNTHETIC_PRIVATE_BACKEND_DETAIL'};}else body={entries:state.posted?[state.posted]:[],self:state.signed?state.posted:null,total:state.posted?1:0};
     }else if(url.pathname==='/rest/v1/rpc/submit_billionaire_score'){
-     state.submits++;assert.ok(state.signed);assert.ok(state.submits>=1&&state.submits<=(state.manualRetry?2:1));const p=JSON.parse(request.postData);assert.equal(p.p_expected_user_id,uid);assert.equal(p.p_game_version,'0.9.0');assert.equal(p.p_display_name,state.editName?'New Synthetic Founder':'Synthetic Founder');assert.equal(p.p_valuation,Math.max(state.posted?.best_valuation??0,Math.round(20000000+state.row.game_state.cash+state.row.game_state.positions.h100.qty*state.row.game_state.prices.h100)));
+     state.submits++;assert.ok(state.signed);assert.ok(state.submits>=1&&state.submits<=(state.manualRetry?2:1));const p=JSON.parse(request.postData);assert.equal(p.p_expected_user_id,uid);assert.equal(p.p_game_version,'0.9.0');assert.equal(p.p_display_name,state.editName?'New Synthetic Founder':'Synthetic Founder');assert.equal(p.p_valuation,Math.max(state.posted?.best_valuation??0,state.row.game_state.gamble?.standardResult.peak??Math.round(20000000+state.row.game_state.cash+state.row.game_state.positions.h100.qty*state.row.game_state.prices.h100)));
      if(state.submitError){status=403;body={code:'42501',message:'Synthetic permission denied'};}
      else {state.posted={public_id:'00000000-0000-4000-8000-000000000202',display_name:p.p_display_name,best_valuation:p.p_valuation,game_version:'0.9.0',position:1,achieved_at:'2026-10-16T00:00:00Z',verification:'unverified'};body=state.posted;}
     }else throw Error('Unexpected external endpoint');
    }catch{state.errors.push('unexpected intercepted request');status=500;body={message:'Synthetic route rejected'};}
    await send('Fetch.fulfillRequest',{requestId,responseCode:status,responseHeaders:[{name:'Content-Type',value:'application/json'},{name:'Access-Control-Allow-Origin',value:origin},{name:'Access-Control-Allow-Headers',value:'*'},{name:'Access-Control-Allow-Methods',value:'GET,POST,PATCH,OPTIONS'}],body:Buffer.from(JSON.stringify(body)).toString('base64')},m.sessionId);
   };
-  async function scenario(variant,{signed=false,empty=false,board=false,error=false,deviceChoice=false,noLocal=false,legacy=false,differentCloud=false,configurationMissing=false,readError=false,publicEntry=false,interactive=null,rankingsCase=null,boardWidth=null}={}){
+  async function scenario(variant,{signed=false,empty=false,board=false,error=false,deviceChoice=false,noLocal=false,legacy=false,differentCloud=false,configurationMissing=false,readError=false,publicEntry=false,interactive=null,rankingsCase=null,boardWidth=null,gambleCase=false}={}){
    const {browserContextId}=await send('Target.createBrowserContext');const {targetId}=await send('Target.createTarget',{url:'about:blank',browserContextId});const {sessionId}=await send('Target.attachToTarget',{targetId,flatten:true});
    const state={signed,row:empty?null:{user_id:uid,game_state:(deviceChoice||differentCloud)?{...game(),month:4,cash:4000000}:game(),updated_at:'2026-10-15T00:00:00.123456Z'},posted:null,submits:0,reads:0,saves:[],errors:[],submitError:error,readError};states.set(sessionId,state);
    if(rankingsCase){state.posted={public_id:'00000000-0000-4000-8000-000000000202',display_name:'Synthetic Founder',best_valuation:['published','rename'].includes(rankingsCase)?30000000:1000000,game_version:'0.9.0',position:1,achieved_at:'2026-10-16T00:00:00Z',verification:'unverified'};state.submitError=rankingsCase==='failed';state.manualRetry=rankingsCase==='failed';state.editName=rankingsCase==='rename';}
@@ -82,6 +82,30 @@ test('offline browser: gameplay/cloud-save parity with main plus isolated board 
    if(signed&&noLocal)await wait(`!!localStorage.getItem('silicon-hustle-v04')&&JSON.parse(localStorage.getItem('silicon-hustle-v04')).seed===42`);
    if(signed&&empty)await wait(`!!document.querySelector('.sh-account [role="status"]')&&document.querySelector('.sh-account [role="status"]').textContent.includes('SYNCED')`);
    await sleep(150); // Let main's existing conflict-dependent save listener effect attach.
+   if(gambleCase){
+    const fixture={...game(),month:29,cash:14540000,labs:8};
+    const saved=()=>evaluate(`JSON.parse(localStorage.getItem('silicon-hustle-v04'))`);
+    const press=async text=>{await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent.startsWith(${JSON.stringify(text)})).click()`);await sleep(60);};
+    const reload=async()=>{if(signed){for(let i=0;i<100;i++){if(JSON.stringify(state.row?.game_state)===JSON.stringify(await saved()))break;await sleep(50);}assert.deepEqual(state.row?.game_state,await saved(),'Wait for acknowledged synthetic cloud snapshot before reload');}await send('Page.reload',{},sessionId);await wait(`!!document.querySelector('.shell')`);if(signed){await wait(`!!document.querySelector('[aria-label="Choose your game save"]')`);await press('USE CLOUD SAVE');await wait(`!document.querySelector('[aria-label="Choose your game save"]')`);}await sleep(100);};
+    await evaluate(`localStorage.setItem('silicon-hustle-v04',${JSON.stringify(JSON.stringify(fixture))});window.dispatchEvent(new Event('silicon-hustle-reload'))`);await sleep(120);
+    await press('NEXT MONTH');await wait(`!!document.querySelector('.company-dialog[open]')`);
+    let result=await saved();assert.equal(result.gamble.decision,'pending');assert.equal(result.month,30);const standard=structuredClone(result.gamble.standardResult);const pending=JSON.stringify(result);
+    await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27},sessionId);await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27},sessionId);assert.equal(JSON.stringify(await saved()),pending);assert.equal(await evaluate(`document.querySelector('.company-dialog').open`),true);
+    await reload();assert.equal(await evaluate(`document.querySelector('.company-dialog').open`),true);
+    await press('DOUBLE DOWN.');assert.equal((await saved()).gamble.decision,'extend');await wait(`!!document.querySelector('.enterprise')`);
+    assert.equal(await evaluate(`document.documentElement.scrollWidth<=innerWidth`),true);
+    assert.equal(await evaluate(`document.querySelectorAll('.enterprise-focuses input').length`),6);
+    await evaluate(`document.querySelector('input[value="pilot"]').click()`);await sleep(60);assert.equal((await saved()).gamble.enterprise.focus,'pilot');
+    await press('NEXT MONTH');assert.equal((await saved()).month,31);assert.equal((await saved()).gamble.enterprise.ledger.length,1);await press('CONTINUE PLAYING');
+    result=await saved();await reload();assert.equal(JSON.stringify(await saved()),JSON.stringify(result),'Reload cannot replay settlement or fees');
+    await press('BUILD THE ENTERPRISE');await press('EXIT THIS CHAPTER');assert.equal(await evaluate(`document.querySelector('.company-dialog').open`),true);const beforeCancel=JSON.stringify(await saved());await press('KEEP BUILDING');assert.equal(JSON.stringify(await saved()),beforeCancel);
+    await press('EXIT THIS CHAPTER');await press('CONFIRM EXTENDED EXIT');result=await saved();assert.equal(result.ended,true);assert.equal(result.gamble.extensionOutcome.reason,'early');assert.deepEqual(result.gamble.standardResult,standard);assert.equal(result.gamble.extensionOutcome.mogabr,false);assert.ok(await evaluate(`document.querySelector('.dual-result').textContent.includes('STANDARD MONTH 30: VICTORY')`));
+    await press('VIEW FINAL DASHBOARD');assert.equal(await evaluate(`!!document.querySelector('button.next')&&document.querySelector('button.next').textContent.includes('VIEW FINAL COVER')`),true);
+    const shot=await send('Page.captureScreenshot',{format:'png'},sessionId);await writeFile(join(root,'enterprise-'+boardWidth+'.png'),Buffer.from(shot.data,'base64'));
+    if(signed){await wait(`document.querySelector('.sh-account [role="status"]').textContent.includes('SYNCED')`);assert.deepEqual(state.row.game_state,result);await press('RANKINGS');await wait(`!!document.querySelector('.board-name form button')&&!document.querySelector('.board-name form button').disabled`);await evaluate(`const i=document.querySelector('#founder-name');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,'Synthetic Founder');i.dispatchEvent(new Event('input',{bubbles:true}));`);await sleep(50);await evaluate(`document.querySelector('.board-name form').requestSubmit()`);await wait(`!!document.querySelector('.board-rankings')`);assert.equal(state.posted.best_valuation,standard.peak);assert.equal(state.submits,1);}
+    else{assert.equal(state.submits,0);assert.equal(state.saves.length,0);const failure={...result,cash:-1,endingChoice:'bankrupt',gamble:{...result.gamble,unicornMonth:31,extensionOutcome:{...result.gamble.extensionOutcome,reason:'bankrupt',unicorn:true,mogabr:false}}};await evaluate(`localStorage.setItem('silicon-hustle-v04',${JSON.stringify(JSON.stringify(failure))});window.dispatchEvent(new Event('silicon-hustle-reload'))`);await wait(`!!document.querySelector('.final-cover')`);assert.ok(await evaluate(`document.querySelector('.final-cover .story-graphic').textContent.includes('SHUTDOWN')`));assert.ok(await evaluate(`document.querySelector('.dual-result').textContent.includes('UNICORN EARNED')`));assert.deepEqual((await saved()).gamble.standardResult,standard);}
+    assert.deepEqual(state.errors,[]);await send('Target.disposeBrowserContext',{browserContextId});states.delete(sessionId);console.log('PASS: enterprise '+boardWidth+' signed='+signed+' choice/reload/settlement/cancel/exit/score isolation; screenshot '+join(root,'enterprise-'+boardWidth+'.png'));return;
+   }
    await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent.startsWith('BUY ·')).click()`);
    await wait(`JSON.parse(localStorage.getItem('silicon-hustle-v04')).positions.h100?.qty===1`);
    if(signed)await wait(`document.querySelector('.sh-account [role="status"]').textContent.includes('SYNCED')`);
@@ -242,6 +266,7 @@ test('offline browser: gameplay/cloud-save parity with main plus isolated board 
    }
    assert.deepEqual(state.errors,[]);await send('Target.disposeBrowserContext',{browserContextId});states.delete(sessionId);return {afterGame,saveTraffic,reads:state.reads};
   }
+  if(!process.env.GAMBLE_BROWSER_ONLY){
   for(const options of [{signed:false},{signed:false,legacy:true},{signed:true},{signed:true,noLocal:true},{signed:true,differentCloud:true},{signed:true,empty:true},{signed:true,deviceChoice:true}]){
    const original=await scenario('main',options),release=await scenario('release',{...options,board:true});assert.deepEqual(release.afterGame,original.afterGame);assert.deepEqual(release.saveTraffic,original.saveTraffic,'Original save request shapes and payloads must match main');console.log('PASS: baseline gameplay/save parity '+JSON.stringify(options));
   }
@@ -251,6 +276,9 @@ test('offline browser: gameplay/cloud-save parity with main plus isolated board 
   await scenario('release',{board:true,readError:true});console.log('PASS: real RPC-not-found is distinct from missing configuration and does not echo backend details');
   await scenario('release',{signed:true,board:true,error:true});console.log('PASS: synthetic submit permission error has no retries or save mutations');
   for(const boardWidth of [1280,390,320])for(const rankingsCase of ['published','eligible','blocked','failed','rename'])await scenario('release',{signed:true,board:true,rankingsCase,boardWidth});
+  }
+  for(const boardWidth of [1280,390,320])await scenario('release',{gambleCase:true,boardWidth});
+  await scenario('release',{signed:true,empty:true,gambleCase:true,boardWidth:390});
   await send('Browser.close');
  }finally{ws?.close();child.kill('SIGTERM');await new Promise(r=>server.close(r));}
 });

@@ -5,6 +5,7 @@ import {attributedPeak,sameBoardSnapshot,type BoardGame} from './boardAttributio
 import {BENCHMARK,BoardController,milestones,type BoardApi,type BoardView} from './leaderboardCore';
 import {pendingPublication,savedPeakExplanation,type SavedPeakCheck} from './rankingsPresentation';
 import './leaderboard.css';
+import {standardRankingValue} from './foundersGamble';
 
 const money=(value:number)=>'$'+value.toLocaleString('en-US');
 const compact=(value:number)=>value>=1e9?'$'+(value/1e9).toLocaleString('en-US',{maximumFractionDigits:1})+'B':value>=1e6?'$'+(value/1e6).toLocaleString('en-US',{maximumFractionDigits:1})+'M':money(value);
@@ -29,7 +30,7 @@ let currentGame:BoardGame|null=null;
 const gameListeners=new Set<()=>void>();
 const subscribeGame=(listener:()=>void)=>{gameListeners.add(listener);return ()=>{gameListeners.delete(listener);};};
 const gameSnapshot=()=>currentGame;
-export function announceBoardPeak(value:number,snapshot:string){currentGame={value,snapshot};gameListeners.forEach(listener=>listener());}
+export function announceBoardPeak(value:number,snapshot:string){try{const standard=standardRankingValue(JSON.parse(snapshot),value);currentGame=standard===null?null:{value:standard,snapshot};}catch{currentGame=null;}gameListeners.forEach(listener=>listener());}
 function displayedGame():BoardGame|null {
  try{const raw=localStorage.getItem('silicon-hustle-v04')||localStorage.getItem('compute-empire-v04');if(!raw||!currentGame||!sameBoardSnapshot(JSON.parse(raw),JSON.parse(currentGame.snapshot)))return null;return currentGame;}catch{return null;}
 }
