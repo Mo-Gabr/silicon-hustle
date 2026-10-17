@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { ENTERPRISE_BALANCE as B, capacity, recurringRevenue, operatingFigures, premium, type Company, type Focus } from './foundersGamble';
 import './founders-gamble.css';
-import {enterpriseActions,clientSlots} from './enterprisePresentation';
+import {enterpriseActions,clientSlots,showEnterpriseIntro} from './enterprisePresentation';
 const dollars = (n: number) => '$' + Math.round(n).toLocaleString('en-US');
 export const companyMoney = (n: number) => n >= 1e9 ? '$' + (n / 1e9).toFixed(2) + 'B' : n >= 1e6 ? '$' + (n / 1e6).toFixed(2) + 'M' : dollars(n);
 /** Native dialog provides focus trapping, Escape handling and focus restoration in WebKit/Chromium. */
@@ -83,6 +83,7 @@ export default function EnterprisePanel({ company, onFocus, blocked }: {
     const bad = operatingFigures(projected, company.labs, true);
     return <section className="lab enterprise" aria-label="Build the Enterprise">
       <div className="eyebrow">MONTHS 31–42</div><h2>BUILD THE ENTERPRISE</h2>
+      {showEnterpriseIntro(company)&&<p className="enterprise-intro">12 months. One move per month. Land clients, grow revenue, and build toward $1 billion.</p>}
       <div className="enterprise-metrics" aria-label="Enterprise metrics">
         <div><small>REVENUE / MO</small><b>{companyMoney(recurringRevenue(e))}</b></div>
         <div><small>CLIENT SLOTS</small><b>{clientSlots(company)}</b></div>

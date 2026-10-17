@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {build} from 'esbuild';
 const result=await build({entryPoints:['src/enterprisePresentation.ts'],bundle:true,platform:'node',format:'esm',write:false});
-const {enterpriseActions,clientSlots}=await import('data:text/javascript;base64,'+Buffer.from(result.outputFiles[0].text).toString('base64'));
+const {enterpriseActions,clientSlots,showEnterpriseIntro}=await import('data:text/javascript;base64,'+Buffer.from(result.outputFiles[0].text).toString('base64'));
 const ruleBuild=await build({entryPoints:['src/foundersGamble.ts'],bundle:true,platform:'node',format:'esm',write:false});
 const {freshEnterprise,focusBlock,ENTERPRISE_BALANCE:B}=await import('data:text/javascript;base64,'+Buffer.from(ruleBuild.outputFiles[0].text).toString('base64'));
 const company=()=>({month:30,cash:20e6,labs:4,seed:42,ended:false,gamble:{version:1,decision:'extend',enterprise:freshEnterprise(),standardResult:{month:30,valuation:100e6,peak:100e6,success:true,ending:'acquisition'}}});
@@ -40,3 +40,12 @@ test('operating revenue, incident risk and actual capacity gains update without 
 });
 
 test('major partners explain their two-slot requirement even when one slot is free',()=>{const c=company();c.labs=8;const e=c.gamble.enterprise;e.reliability=5;e.contracts=[{kind:'pilot',month:31},{kind:'pilot',month:32},{kind:'enterprise',month:35},{kind:'enterprise',month:36}];e.purchasedSlots=1;assert.equal(clientSlots(c),'4 / 5 slots');assert.equal(action(c,'strategic').lockedCopy,'Need 2 free client slots');assert.equal(action(c,'strategic').disabled,true);});
+
+test('extension introduction is derived only from the opening saved planning phase',()=>{
+ const c=company();const before=JSON.stringify(c);
+ assert.equal(showEnterpriseIntro(c),true);assert.equal(showEnterpriseIntro(JSON.parse(before)),true);assert.equal(JSON.stringify(c),before);
+ for(const month of [1,29,31,35,42])assert.equal(showEnterpriseIntro({...c,month}),false);
+ for(const decision of ['pending','exit'])assert.equal(showEnterpriseIntro({...c,gamble:{...c.gamble,decision}}),false);
+ assert.equal(showEnterpriseIntro({...c,ended:true}),false);assert.equal(showEnterpriseIntro({...c,gamble:undefined}),false);
+ assert.equal(showEnterpriseIntro({...c,gamble:{...c.gamble,enterprise:{...c.gamble.enterprise,ledger:[{month:31}]}}}),false);
+});

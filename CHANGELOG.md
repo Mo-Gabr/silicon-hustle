@@ -20,6 +20,8 @@ This initial baseline summarizes major features already completed. It does not a
 
 ### Changed
 
+- How to Play now uses START BUILDING and a short $100M/30-month goal teaser. The optional extension introduces its challenge inline during the opening planning phase only; saved games restore the appropriate introduction state without new flags or extra screens.
+
 - Clarified enterprise actions with LAND BIG CLIENT and SIGN MAJOR PARTNER, dynamic spend/gain/risk summaries, live unlock progress, and an explicit CLIENT SLOTS metric. All six opportunities remain visible; gameplay rules are unchanged.
 
 - Compacted the Founder’s Gamble decision and enterprise gameplay into the existing terminal style: short choice copy, selectable action rows, three summary metrics, and collapsed financial Details. Large text reflows on narrow screens.

@@ -31,3 +31,8 @@ export function enterpriseActions(company:Company){
   return {id,title:titles[id],description:`Spend ${actionMoney(cost)} · ${effect}`,disabled:!!reason,lockedCopy};
  });
 }
+
+/** Opening planning phase only; loading a later save must never replay onboarding. */
+export function showEnterpriseIntro(company:Company){
+ return company.gamble?.decision==='extend'&&!company.ended&&company.month===B.standardMonth&&company.gamble.enterprise.ledger.length===0;
+}

@@ -64,3 +64,5 @@ body::before{top:0;height:var(--sh-safe-top)}
 body::after{bottom:0;height:var(--sh-safe-bottom)}
 /* Keep the extra spend/unlock information compact without shrinking touch targets. */
 @media(max-width:650px){.enterprise-metrics{margin:8px 0}.enterprise-focuses label{padding-top:6px;padding-bottom:6px}}
+
+.enterprise .enterprise-intro{font-size:.75rem;line-height:1.45;color:#a7bbb5;margin:0 0 10px;overflow-wrap:anywhere}
