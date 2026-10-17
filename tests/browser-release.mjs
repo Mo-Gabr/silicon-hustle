@@ -107,8 +107,14 @@ test('offline browser: gameplay/cloud-save parity with main plus isolated board 
     assert.equal(await evaluate(`document.querySelectorAll('.enterprise-focuses input').length`),6);
     assert.equal(await evaluate(`document.querySelectorAll('.enterprise-metrics>div').length`),3);
     assert.equal(await evaluate(`document.querySelector('.enterprise-details').open`),false);
-    assert.deepEqual(await evaluate(`Array.from(document.querySelectorAll('.focus-heading b'),e=>e.textContent)`),['LAND A PILOT','WIN ENTERPRISE','STRATEGIC PARTNER','EXPAND CAPACITY','IMPROVE RELIABILITY','OPERATE']);
+    assert.deepEqual(await evaluate(`Array.from(document.querySelectorAll('.focus-heading b'),e=>e.textContent)`),['LAND A PILOT','LAND BIG CLIENT','SIGN MAJOR PARTNER','EXPAND CAPACITY','IMPROVE RELIABILITY','OPERATE']);
     assert.equal(await evaluate(`document.querySelector('input[value="enterprise"]').disabled`),true);
+    assert.equal(await evaluate(`document.querySelector('.enterprise-metrics>div:nth-child(2) small').textContent`),'CLIENT SLOTS');
+    assert.equal(await evaluate(`document.querySelector('.enterprise-metrics>div:nth-child(2) b').textContent`),'0 / 4 slots');
+    assert.match(await evaluate(`document.querySelector('input[value="enterprise"]').closest('label').textContent`),/Spend \$4M · 65% chance · \+\$2.5M\/month/);
+    assert.equal(await evaluate(`document.querySelector('input[value="enterprise"]').closest('label').querySelector('.focus-block').textContent`),'Unlock: Pilots 0/2 · Reliability 1/3');
+    assert.equal(await evaluate(`document.querySelector('input[value="strategic"]').closest('label').querySelector('.focus-block').textContent`),'Unlock: Big clients 0/2 · Reliability 1/5');
+
     assert.equal(await evaluate(`Array.from(document.querySelectorAll('.next')).filter(e=>e.textContent.startsWith('NEXT MONTH')).length`),1);
     const compact=await evaluate(`(()=>{const e=document.querySelector('.enterprise');return {height:e.getBoundingClientRect().height,maxRow:Math.max(...Array.from(e.querySelectorAll('.enterprise-focuses label'),r=>r.getBoundingClientRect().height))};})()`);
     assert.ok(compact.height<700,JSON.stringify(compact));assert.ok(compact.maxRow<110);console.log('Compact enterprise '+boardWidth+': '+JSON.stringify(compact));
@@ -117,7 +123,7 @@ test('offline browser: gameplay/cloud-save parity with main plus isolated board 
     await evaluate(`document.querySelector('.enterprise-details summary').click();document.querySelector('.enterprise').scrollIntoView({block:'start'})`);await capture('enterprise-compact');
     if(!signed){await evaluate(`document.documentElement.style.fontSize='32px'`);assert.equal(await evaluate(`document.documentElement.scrollWidth<=innerWidth`),true);assert.equal(await evaluate(`Array.from(document.querySelectorAll('.enterprise-focuses label')).every(e=>e.getBoundingClientRect().height>=44&&e.scrollWidth<=e.clientWidth+1)`),true);assert.equal(await evaluate(`Array.from(document.querySelectorAll('.enterprise-metrics>div')).every(e=>e.scrollWidth<=e.clientWidth+1)`),true);await capture('enterprise-large-text');await evaluate(`document.documentElement.style.fontSize=''`);}
 
-    await evaluate(`document.querySelector('input[value="pilot"]').click()`);await sleep(60);assert.equal((await saved()).gamble.enterprise.focus,'pilot');
+    await evaluate(`document.querySelector('input[value="pilot"]').click()`);await sleep(60);assert.equal((await saved()).gamble.enterprise.focus,'pilot');assert.ok(await evaluate(`document.querySelector('.extension-controls').textContent.includes('Next focus: LAND A PILOT')`));
     await press('NEXT MONTH');assert.equal((await saved()).month,31);assert.equal((await saved()).gamble.enterprise.ledger.length,1);await press('CONTINUE PLAYING');
     result=await saved();await reload();assert.equal(JSON.stringify(await saved()),JSON.stringify(result),'Reload cannot replay settlement or fees');
     await press('BUILD THE ENTERPRISE');await press('EXIT THIS CHAPTER');assert.equal(await evaluate(`document.querySelector('.company-dialog').open`),true);const beforeCancel=JSON.stringify(await saved());await press('KEEP BUILDING');assert.equal(JSON.stringify(await saved()),beforeCancel);

@@ -62,3 +62,5 @@ html{scroll-padding-top:calc(var(--sh-safe-top) + 12px);scroll-padding-bottom:ca
 body::before,body::after{content:'';position:fixed;left:0;right:0;z-index:50;pointer-events:none;background:#091316}
 body::before{top:0;height:var(--sh-safe-top)}
 body::after{bottom:0;height:var(--sh-safe-bottom)}
+/* Keep the extra spend/unlock information compact without shrinking touch targets. */
+@media(max-width:650px){.enterprise-metrics{margin:8px 0}.enterprise-focuses label{padding-top:6px;padding-bottom:6px}}

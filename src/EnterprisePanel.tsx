@@ -1,24 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import { ENTERPRISE_BALANCE as B, capacity, slots, recurringRevenue, operatingFigures, focusBlock, premium, type Company, type Focus } from './foundersGamble';
+import { ENTERPRISE_BALANCE as B, capacity, recurringRevenue, operatingFigures, premium, type Company, type Focus } from './foundersGamble';
 import './founders-gamble.css';
+import {enterpriseActions,clientSlots} from './enterprisePresentation';
 const dollars = (n: number) => '$' + Math.round(n).toLocaleString('en-US');
 export const companyMoney = (n: number) => n >= 1e9 ? '$' + (n / 1e9).toFixed(2) + 'B' : n >= 1e6 ? '$' + (n / 1e6).toFixed(2) + 'M' : dollars(n);
-const focuses:{id:Focus,title:string,impact:string}[]=[
- {id:'pilot',title:'LAND A PILOT',impact:`${B.focuses.pilot.chance*100}% chance · +${companyMoney(B.focuses.pilot.revenue)}/mo`},
- {id:'enterprise',title:'WIN ENTERPRISE',impact:`${B.focuses.enterprise.chance*100}% chance · +${companyMoney(B.focuses.enterprise.revenue)}/mo`},
- {id:'strategic',title:'STRATEGIC PARTNER',impact:`${B.focuses.strategic.chance*100}% chance · +${companyMoney(B.focuses.strategic.revenue)}/mo`},
- {id:'capacity',title:'EXPAND CAPACITY',impact:`+${B.addedCapacity} slots · max ${B.maxCapacity}`},
- {id:'reliability',title:'IMPROVE RELIABILITY',impact:'+1 level · fewer incidents'},
- {id:'operate',title:'OPERATE',impact:'Serve customers · no new investment'}
-];
-function conciseBlock(reason:string|null){
- if(!reason)return null;
- if(reason.includes('cash'))return 'Not enough cash';
- if(reason.includes('before promising'))return 'No free capacity';
- if(reason.startsWith('Needs reliability'))return reason.replace(' and ',' + ').replace(' signed','').replace(' enterprise customers',' enterprise clients').replace(/\.$/,'');
- if(reason.includes('already'))return 'Already at maximum';
- return 'Chapter closed';
-}
 /** Native dialog provides focus trapping, Escape handling and focus restoration in WebKit/Chromium. */
 export function CompanyDialog({ title, children, onCancel }: {
     title: string;
@@ -84,6 +69,7 @@ export default function EnterprisePanel({ company, onFocus, blocked }: {
     const f = operatingFigures(e, company.labs);
     const last = e.ledger.at(-1);
     const focus = e.focus;
+    const focuses=enterpriseActions(company);
     const investment = B.focuses[focus].cost;
     const net = f.profit + company.labs * 270000;
     const projected = { ...e, contracts: [...e.contracts], reliability: e.reliability, purchasedSlots: e.purchasedSlots };
@@ -99,16 +85,16 @@ export default function EnterprisePanel({ company, onFocus, blocked }: {
       <div className="eyebrow">MONTHS 31–42</div><h2>BUILD THE ENTERPRISE</h2>
       <div className="enterprise-metrics" aria-label="Enterprise metrics">
         <div><small>REVENUE / MO</small><b>{companyMoney(recurringRevenue(e))}</b></div>
-        <div><small>CAPACITY</small><b>{slots(e)} / {capacity(e,company.labs)}</b></div>
+        <div><small>CLIENT SLOTS</small><b>{clientSlots(company)}</b></div>
         <div><small>RELIABILITY</small><b>{e.reliability} / {B.maxReliability}</b></div>
       </div>
       <fieldset disabled={blocked||company.ended}><legend>NEXT MONTH’S FOCUS</legend>
         <div className="enterprise-focuses">{focuses.map(item=>{
-          const reason=conciseBlock(focusBlock(company,item.id));
+
           return <label key={item.id} className={focus===item.id?'selected-focus':''}>
-            <input type="radio" name="enterprise-focus" value={item.id} checked={focus===item.id} disabled={!!reason} onChange={()=>onFocus(item.id)}/>
-            <span className="focus-copy"><span className="focus-heading"><b>{item.title}</b><span>{companyMoney(B.focuses[item.id].cost)}</span></span>
-              <small>{item.impact}</small>{reason&&<small className="focus-block">{reason}</small>}
+            <input type="radio" name="enterprise-focus" value={item.id} checked={focus===item.id} disabled={item.disabled} onChange={()=>onFocus(item.id)}/>
+            <span className="focus-copy"><span className="focus-heading"><b>{item.title}</b></span>
+              <small>{item.description}</small>{item.disabled&&<small className="focus-block">{item.lockedCopy}</small>}
             </span>
           </label>;
         })}</div>

@@ -20,6 +20,8 @@ This initial baseline summarizes major features already completed. It does not a
 
 ### Changed
 
+- Clarified enterprise actions with LAND BIG CLIENT and SIGN MAJOR PARTNER, dynamic spend/gain/risk summaries, live unlock progress, and an explicit CLIENT SLOTS metric. All six opportunities remain visible; gameplay rules are unchanged.
+
 - Compacted the Founder’s Gamble decision and enterprise gameplay into the existing terminal style: short choice copy, selectable action rows, three summary metrics, and collapsed financial Details. Large text reflows on narrow screens.
 
 - Four valuation-based losing stories, with timing adapted to early exits and Month 42, and final values displayed in millions or billions. Original trading, lab economics, authentication and cloud-save infrastructure remain unchanged.
