@@ -15,7 +15,7 @@ const user={id:uid,aud:'authenticated',role:'authenticated',email:'synthetic@exa
 const game=()=>({month:3,cash:5000000,prices:Object.fromEntries(['l40s','a100','h100','h200','b200','mi300','mi325','gaudi'].map(k=>[k,34000])),positions:{},labs:0,headline:'SYNTHETIC ONLY',history:[],ended:false,ending:'',seed:42,threat:null,threatHistory:[],crisisResult:null});
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let available=true;try{await access(chrome);}catch{available=false;}
-test('offline browser: gameplay/cloud-save parity with main plus isolated board flows',{skip:!available?'Chrome not installed; set CHROME_BIN':false,timeout:120000},async()=>{
+test('offline browser: original gameplay parity, safe save resume and isolated Rankings flows',{skip:!available?'Chrome not installed; set CHROME_BIN':false,timeout:120000},async()=>{
  const root=await mkdtemp(join(tmpdir(),'silicon-board-release-browser-'));
  for(const variant of ['main','release','missingurl','missingkey','missingboth']){
   await build({entryPoints:['src/main.tsx'],bundle:true,format:'esm',outdir:join(root,variant),entryNames:'app',jsx:'automatic',define:{'import.meta.env.VITE_SUPABASE_URL':(variant==='missingurl'||variant==='missingboth')?'undefined':JSON.stringify('https://supabase.test'),'import.meta.env.VITE_SUPABASE_ANON_KEY':(variant==='missingkey'||variant==='missingboth')?'undefined':JSON.stringify('sb_publishable_SYNTHETIC_ONLY')},plugins:variant==='main'?[{name:'baseline-main',setup(b){b.onLoad({filter:/\/src\/main\.tsx$/},()=>({contents:execFileSync('git',['show',base+':src/main.tsx'],{encoding:'utf8'}),loader:'tsx'}));}}]:[]});
@@ -29,10 +29,10 @@ test('offline browser: gameplay/cloud-save parity with main plus isolated board 
   let port,route;for(let i=0;i<70;i++){try{[port,route]=(await readFile(join(profile,'DevToolsActivePort'),'utf8')).trim().split('\n');break;}catch{await sleep(100);}}
   assert.ok(port,'Chrome unavailable');ws=new WebSocket(`ws://127.0.0.1:${port}${route}`);await new Promise((r,j)=>{ws.onopen=r;ws.onerror=j;});
   let seq=0;const pending=new Map(),states=new Map();
-  const send=(method,params={},sessionId)=>new Promise((resolve,reject)=>{const id=++seq;pending.set(id,{resolve,reject});ws.send(JSON.stringify({id,method,params,...sessionId?{sessionId}:{}}));});
+  const send=(method,params={},sessionId)=>new Promise((resolve,reject)=>{const id=++seq;pending.set(id,{resolve,reject,sessionId});ws.send(JSON.stringify({id,method,params,...sessionId?{sessionId}:{}}));});
   ws.onmessage=async e=>{
-   const m=JSON.parse(e.data);if(m.id){const p=pending.get(m.id);if(p){pending.delete(m.id);m.error?p.reject(Error(m.error.message)):p.resolve(m.result);}return;}
-   const state=states.get(m.sessionId);if(!state)return;
+   const m=JSON.parse(e.data);if(m.id){const p=pending.get(m.id);if(p){pending.delete(m.id);m.error?(/Session with given id not found/.test(m.error.message)&&(!states.has(p.sessionId)||states.get(p.sessionId)?.disposing)?p.resolve({}):p.reject(Error(m.error.message))):p.resolve(m.result);}return;}
+   const state=states.get(m.sessionId);if(!state||state.disposing)return;
    if(m.method==='Runtime.exceptionThrown')state.errors.push('runtime exception');
    if(m.method!=='Fetch.requestPaused')return;
    const {requestId,request}=m.params,url=new URL(request.url);
@@ -45,9 +45,9 @@ test('offline browser: gameplay/cloud-save parity with main plus isolated board 
     else if(url.pathname==='/rest/v1/game_saves'){
      const payload=request.postData?JSON.parse(request.postData):null;
      state.saves.push({method:request.method,owner:url.searchParams.get('user_id'),payload:payload?{user_id:payload.user_id,game_state:payload.game_state}:null});
-     if(request.method==='GET')body=state.row;
-     else if(request.method==='POST'){assert.equal(payload.user_id,uid);assert.equal(state.row,null);state.row={...payload};body={updated_at:state.row.updated_at};}
-     else if(request.method==='PATCH'){assert.equal(url.searchParams.get('updated_at'),'eq.'+state.row.updated_at);state.row={...state.row,...payload};body={updated_at:state.row.updated_at};}
+     if(request.method==='GET'){if(state.cloudOffline){status=503;body={code:'SYNTHETIC_OFFLINE',message:'Offline fixture'};}else body=state.row;}
+     else if(request.method==='POST'){assert.equal(payload.user_id,uid);assert.equal(state.row,null);state.row={...payload};body=state.row;}
+     else if(request.method==='PATCH'){assert.equal(url.searchParams.get('updated_at'),'eq.'+state.row.updated_at);assert.deepEqual(JSON.parse(url.searchParams.get('game_state').slice(3)),state.row.game_state);state.row={...state.row,...payload};body=state.row;}
      else throw Error('Unexpected save method');
     }else if(url.pathname==='/rest/v1/rpc/get_billionaire_board'){
      state.reads++;if(state.readError){status=404;body={code:'PGRST202',message:'SYNTHETIC_PRIVATE_BACKEND_DETAIL'};}else body={entries:state.posted?[state.posted]:[],self:state.signed?state.posted:null,total:state.posted?1:0};
@@ -59,7 +59,7 @@ test('offline browser: gameplay/cloud-save parity with main plus isolated board 
    }catch{state.errors.push('unexpected intercepted request');status=500;body={message:'Synthetic route rejected'};}
    await send('Fetch.fulfillRequest',{requestId,responseCode:status,responseHeaders:[{name:'Content-Type',value:'application/json'},{name:'Access-Control-Allow-Origin',value:origin},{name:'Access-Control-Allow-Headers',value:'*'},{name:'Access-Control-Allow-Methods',value:'GET,POST,PATCH,OPTIONS'}],body:Buffer.from(JSON.stringify(body)).toString('base64')},m.sessionId);
   };
-  async function scenario(variant,{signed=false,empty=false,board=false,error=false,deviceChoice=false,noLocal=false,legacy=false,differentCloud=false,configurationMissing=false,readError=false,publicEntry=false,interactive=null,rankingsCase=null,boardWidth=null}={}){
+  async function scenario(variant,{signed=false,empty=false,board=false,error=false,deviceChoice=false,noLocal=false,legacy=false,differentCloud=false,configurationMissing=false,readError=false,publicEntry=false,interactive=null,rankingsCase=null,boardWidth=null,resumeCase=false}={}){
    const {browserContextId}=await send('Target.createBrowserContext');const {targetId}=await send('Target.createTarget',{url:'about:blank',browserContextId});const {sessionId}=await send('Target.attachToTarget',{targetId,flatten:true});
    const state={signed,row:empty?null:{user_id:uid,game_state:(deviceChoice||differentCloud)?{...game(),month:4,cash:4000000}:game(),updated_at:'2026-10-15T00:00:00.123456Z'},posted:null,submits:0,reads:0,saves:[],errors:[],submitError:error,readError};states.set(sessionId,state);
    if(rankingsCase){state.posted={public_id:'00000000-0000-4000-8000-000000000202',display_name:'Synthetic Founder',best_valuation:['published','rename'].includes(rankingsCase)?30000000:1000000,game_version:'0.9.0',position:1,achieved_at:'2026-10-16T00:00:00Z',verification:'unverified'};state.submitError=rankingsCase==='failed';state.manualRetry=rankingsCase==='failed';state.editName=rankingsCase==='rename';}
@@ -78,15 +78,60 @@ test('offline browser: gameplay/cloud-save parity with main plus isolated board 
    await send('Page.addScriptToEvaluateOnNewDocument',{source:`if(!localStorage.getItem('__synthetic_seeded')){for(const [k,v] of Object.entries(${JSON.stringify(entries)}))localStorage.setItem(k,v);localStorage.setItem('__synthetic_seeded','yes');}`},sessionId);
    await send('Page.navigate',{url:origin+'/'+variant+'/'},sessionId);
    await wait(`!!document.querySelector('.shell')`);
-   if(signed&&!empty&&!noLocal){await wait(`!!document.querySelector('[aria-label="Choose your game save"]')`);await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent===${JSON.stringify(deviceChoice?"KEEP THIS DEVICE'S SAVE":"USE CLOUD SAVE")}).click()`);await wait(`!document.querySelector('[aria-label="Choose your game save"]')`);}
+   if(signed&&!empty&&!noLocal&&(deviceChoice||differentCloud)){await wait(`!!document.querySelector('[aria-label="Choose your game save"]')`);await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent===${JSON.stringify(deviceChoice?"KEEP THIS DEVICE'S SAVE":"USE CLOUD SAVE")}).click()`);await wait(`!document.querySelector('[aria-label="Choose your game save"]')`);}
    if(signed&&noLocal)await wait(`!!localStorage.getItem('silicon-hustle-v04')&&JSON.parse(localStorage.getItem('silicon-hustle-v04')).seed===42`);
-   if(signed&&empty)await wait(`!!document.querySelector('.sh-account [role="status"]')&&document.querySelector('.sh-account [role="status"]').textContent.includes('SYNCED')`);
+   if(signed&&empty){
+    await wait(`document.querySelector('.sh-account [role="status"]')?.textContent.includes('DEVICE SAVE READY')`);assert.equal(await evaluate(`!!document.querySelector('[aria-label="Choose your game save"]')`),false,'Device-only launch resumes without a source picker');
+    await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='ACCOUNT').click()`);await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='SAVED GAMES').click()`);await wait(`!!document.querySelector('[aria-label="Choose your game save"]')&&!document.querySelector('.sh-dialog .sh-google').disabled`);await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==="KEEP THIS DEVICE'S SAVE").click()`);
+   }
+   if(signed)await wait(`document.querySelector('.sh-account [role="status"]')?.textContent.includes('SYNCED')`);
+   if(signed&&!deviceChoice&&!differentCloud&&!noLocal&&!empty)assert.equal(await evaluate(`!!document.querySelector('[aria-label="Choose your game save"]')`),false,'Identical saves resume automatically');
    await sleep(150); // Let main's existing conflict-dependent save listener effect attach.
    await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent.startsWith('BUY ·')).click()`);
    await wait(`JSON.parse(localStorage.getItem('silicon-hustle-v04')).positions.h100?.qty===1`);
    if(signed)await wait(`document.querySelector('.sh-account [role="status"]').textContent.includes('SYNCED')`);
    await sleep(signed?1100:50);
    const afterGame=await evaluate(`JSON.parse(localStorage.getItem('silicon-hustle-v04'))`);
+   if(resumeCase){
+    const writes=()=>state.saves.filter(r=>r.method==='PATCH'||r.method==='POST').length;
+    const baselineWrites=writes();
+    await send('Page.reload',{},sessionId);await wait(`document.querySelector('.sh-account [role="status"]')?.textContent.includes('SYNCED')`);
+    assert.equal(await evaluate(`!!document.querySelector('[aria-label="Choose your game save"]')`),false);assert.equal(writes(),baselineWrites);
+    state.cloudOffline=true;
+    await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent.startsWith('BUY ·')).click()`);
+    await wait(`JSON.parse(localStorage.getItem('silicon-hustle-v04')).positions.h100.qty===2`);
+    await wait(`document.querySelector('.sh-account [role="status"]')?.textContent.includes('PAUSED')`);assert.equal(writes(),baselineWrites);
+    await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='ACCOUNT').click()`);await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='SAVED GAMES').click()`);
+    await wait(`document.querySelector('.sh-save-picker')?.textContent.includes('Unavailable · reconnect to check')`);
+    assert.ok(await evaluate(`document.querySelector('.sh-save-picker .sh-primary').disabled&&document.querySelector('.sh-save-picker .sh-google').disabled`));
+    await evaluate(`Array.from(document.querySelectorAll('.sh-save-picker button')).find(b=>b.textContent==='CONTINUE ON THIS DEVICE').click()`);
+    const offlineSave=await evaluate(`localStorage.getItem('silicon-hustle-v04')`);
+    await send('Page.reload',{},sessionId);await wait(`document.querySelector('.sh-account [role="status"]')?.textContent.includes('PAUSED')`);
+    assert.equal(await evaluate(`localStorage.getItem('silicon-hustle-v04')`),offlineSave);assert.equal(await evaluate(`!!document.querySelector('[aria-label="Choose your game save"]')`),false);
+    state.cloudOffline=false;await evaluate(`window.dispatchEvent(new Event('online'))`);await wait(`document.querySelector('.sh-account [role="status"]')?.textContent.includes('SYNCED')`);assert.equal(writes(),baselineWrites+1);
+    state.row={...state.row,game_state:{...state.row.game_state,cash:state.row.game_state.cash+1000}};
+    await evaluate(`window.dispatchEvent(new Event('online'))`);await wait(`!!document.querySelector('.sh-save-picker')`);assert.equal(writes(),baselineWrites+1);
+    assert.equal(await evaluate(`localStorage.getItem('silicon-hustle-v04')`),offlineSave);
+    assert.equal(await evaluate(`document.querySelector('.sh-save-picker h2').textContent`),'PICK UP WHERE YOU LEFT OFF');
+    for(const width of [390,320]){
+     await send('Emulation.setDeviceMetricsOverride',{width,height:width===320?568:844,deviceScaleFactor:1,mobile:true},sessionId);
+     await evaluate(`document.querySelectorAll('.sh-save-picker p,.sh-save-picker button').forEach(e=>e.style.fontSize='20px')`);
+     const geometry=await evaluate(`(()=>{const d=document.querySelector('.sh-save-picker'),r=d.getBoundingClientRect();d.scrollTop=d.scrollHeight;const b=Array.from(d.querySelectorAll('button')).at(-1).getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,last:b.bottom,height:innerHeight,width:innerWidth,clipped:d.scrollWidth>d.clientWidth};})()`);
+     assert.ok(geometry.left>=0&&geometry.right<=geometry.width&&geometry.top>=0&&geometry.bottom<=geometry.height&&!geometry.clipped);assert.ok(geometry.last<=geometry.bottom,'Last action remains reachable by scrolling');
+     const shot=await send('Page.captureScreenshot',{format:'png'},sessionId);await writeFile(join(root,'save-review-'+width+'.png'),Buffer.from(shot.data,'base64'));
+    }
+    await evaluate(`Array.from(document.querySelectorAll('.sh-save-picker button')).find(b=>b.textContent==='CONTINUE ON THIS DEVICE').click()`);await wait(`!document.querySelector('.sh-save-picker')`);
+    await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='ACCOUNT').click()`);await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='SAVED GAMES').click()`);await wait(`!!document.querySelector('.sh-save-picker')`);
+    assert.equal(writes(),baselineWrites+1);assert.equal(state.submits,0);assert.deepEqual(state.errors,[]);
+    await evaluate(`Array.from(document.querySelectorAll('.sh-save-picker button')).find(b=>b.textContent==='CONTINUE ON THIS DEVICE').click()`);
+    await evaluate(`window.dispatchEvent(new StorageEvent('storage',{key:'silicon-hustle-v04'}))`);
+    await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent.startsWith('BUY ·')).click()`);
+    assert.equal(await evaluate(`localStorage.getItem('silicon-hustle-v04')`),offlineSave,'A stopped tab cannot overwrite another tab’s saved progress');
+    assert.equal(writes(),baselineWrites+1);
+
+    console.log('PASS: automatic resume, reload, durable offline recovery, reconnect, conflicting cloud preservation and Saved Games at 390/320px');
+    state.disposing=true;await send('Target.disposeBrowserContext',{browserContextId});states.delete(sessionId);return {afterGame,saveTraffic:state.saves,reads:state.reads};
+   }
    if(rankingsCase==='blocked')state.row.game_state={...afterGame,cash:afterGame.cash+1};
    const saveTraffic=structuredClone(state.saves),savedBefore=JSON.stringify(state.row),localBefore=JSON.stringify(afterGame);
    if(board){
@@ -240,11 +285,12 @@ test('offline browser: gameplay/cloud-save parity with main plus isolated board 
 
     console.log('PASS: interactive chip panel '+interactive+' buy/sell fees, MAX/ALL, quantities, legacy baseline, monthly snapshot, focus, dismissal and layout');
    }
-   assert.deepEqual(state.errors,[]);await send('Target.disposeBrowserContext',{browserContextId});states.delete(sessionId);return {afterGame,saveTraffic,reads:state.reads};
+   assert.deepEqual(state.errors,[]);state.disposing=true;await send('Target.disposeBrowserContext',{browserContextId});states.delete(sessionId);return {afterGame,saveTraffic,reads:state.reads};
   }
   for(const options of [{signed:false},{signed:false,legacy:true},{signed:true},{signed:true,noLocal:true},{signed:true,differentCloud:true},{signed:true,empty:true},{signed:true,deviceChoice:true}]){
-   const original=await scenario('main',options),release=await scenario('release',{...options,board:true});assert.deepEqual(release.afterGame,original.afterGame);assert.deepEqual(release.saveTraffic,original.saveTraffic,'Original save request shapes and payloads must match main');console.log('PASS: baseline gameplay/save parity '+JSON.stringify(options));
+   const original=await scenario('main',options),release=await scenario('release',{...options,board:true});assert.deepEqual(release.afterGame,original.afterGame);assert.deepEqual(release.saveTraffic,original.saveTraffic,'Both gameplay implementations produce the same payloads through the shared save coordinator');console.log('PASS: baseline gameplay/save parity '+JSON.stringify(options));
   }
+  await scenario('release',{signed:true,resumeCase:true});
   for(const interactive of ['desktop','mobile','small'])await scenario('release',{interactive});
   await scenario('release',{board:true,publicEntry:true});console.log('PASS: configured anonymous client renders a populated Rankings response with rank, without sign-in, save requests or score writes');
   for(const variant of ['missingurl','missingkey','missingboth']){await scenario(variant,{board:true,configurationMissing:true});console.log('PASS: missing Preview configuration '+variant+' makes no RPC and shows configuration error');}

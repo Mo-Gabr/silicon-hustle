@@ -14,7 +14,11 @@ Guest play works without any backend. First visit shows a retro founder welcome;
 
 ## Save behavior
 
-Guest saves continue in localStorage. Once signed in, changes are also synced to Supabase. If a device has both a local save and an existing cloud save, players are asked which to keep. Cross-device syncing is best used on one device at a time; this version is not a collaborative multi-device live session. Save errors are shown to the player.
+Guest saves continue in localStorage. Signed-in players automatically resume identical copies or a valid cloud-only save. A valid device-only save resumes after a successful cloud read confirms absence; **Account → Saved Games** provides explicit consent before importing an unbound device game into that account. Once synchronized, account-specific local history permits automatic uploads only while the cloud snapshot remains unchanged. A changed cloud save or unproven continuation opens **PICK UP WHERE YOU LEFT OFF**; timestamps and valuation are not used to choose a winner.
+
+Cloud read errors leave device play available and pause sync. Online/focus/app-foreground events recheck the cloud. Writes use a conditional timestamp and full-snapshot comparison; competing changes require review. Recovery copies are persisted locally before replacements; manual choices preserve both originals, and ordinary sync retains its latest before/after pair. Players can export them from Saved Games. Storage failure pauses sync; clearing app/browser storage removes this local history and recovery data. No additional database columns, triggers, or migrations are used. Supabase owner-only RLS remains required.
+
+Cross-device syncing is best used on one device at a time; this is not a collaborative live session. Other-tab changes pause sync and local writes until reload. Older client versions retain their previous behavior. Large snapshots can exceed gateway URL limits for full-snapshot conditional writes: a rejected request pauses sync without an unconditional fallback. Offline and cross-device behavior is covered with synthetic browser/API tests; native authentication and real-device cross-device flows still require validation.
 
 ## iOS
 

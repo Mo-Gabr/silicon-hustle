@@ -5,6 +5,8 @@ import {App} from '@capacitor/app';
 import {Browser} from '@capacitor/browser';
 import {SocialLogin, type GoogleLoginResponseOnline} from '@capgo/capacitor-social-login';
 import './auth.css';
+import './automatic-resume.css';
+import {ResumeCoordinator,validSave,parseSave,deviceRaw,pauseDeviceWrites,withSaveTimeout,DEVICE_RECOVERY_KEY,type ResumeView} from './automaticResume';
 
 const url=import.meta.env.VITE_SUPABASE_URL as string|undefined;
 const key=import.meta.env.VITE_SUPABASE_ANON_KEY as string|undefined;
@@ -42,10 +44,9 @@ async function completeNativeLogin(link:string){
  throw new Error('Login link did not contain a session. Please try signing in again.');
 }
 
-const SAVE_KEY='silicon-hustle-v04';
 const WELCOME_KEY='silicon-hustle-welcome-v09';
-const saved=()=>localStorage.getItem(SAVE_KEY);
-type CloudSave={user_id:string;game_state:unknown;updated_at:string};
+
+function saveSummary(raw:unknown){if(!raw)return 'No save found';if(!validSave(raw))return 'Unsupported or damaged save · export for recovery';const s=raw as {month:number;ended:boolean;cash:number};return `Month ${s.month}${s.ended?' · completed':' · in progress'} · Cash $${Math.round(s.cash).toLocaleString('en-US')}`;}
 
 export default function AuthGate({children}:{children:React.ReactNode}){
  const [welcome,setWelcome]=useState(()=>localStorage.getItem(WELCOME_KEY)!=='yes');
@@ -54,17 +55,14 @@ export default function AuthGate({children}:{children:React.ReactNode}){
  const [notice,setNotice]=useState('');
  const [email,setEmail]=useState('');
  const [showAuth,setShowAuth]=useState(false);
- const [conflict,setConflict]=useState<CloudSave|null>(null);
+ const [resume,setResume]=useState<ResumeView|null>(null);
+ const [deviceError,setDeviceError]=useState('');
+ const coordinator=useRef<ResumeCoordinator|null>(null);
  const [ready,setReady]=useState(false);
- const revision=useRef<string|null>(null);
- const syncing=useRef(false);
- const dirty=useRef(false);
- const resolved=useRef(false);
- const [saveStatus,setSaveStatus]=useState('');
  useEffect(()=>{
   if(!supabase){setReady(true);return;}
   supabase.auth.getSession().then(({data,error})=>{if(error)setNotice(error.message);setSession(data.session);setReady(true);});
-  const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,next)=>{setSession(next);});
+  const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,next)=>{if(coordinator.current?.account!==next?.user.id)coordinator.current?.stop();setSession(next);});
   let listener: { remove: () => Promise<void> } | undefined;
 let cancelled = false;
 
@@ -106,65 +104,56 @@ return () => {
 };
  },[]);
  useEffect(()=>{
-  if(!supabase||!session?.user.id)return;
-  resolved.current=false;revision.current=null;dirty.current=false;
-  let canceled=false;
-  (async()=>{
-   const {data,error}=await supabase.from('game_saves').select('user_id,game_state,updated_at').eq('user_id',session.user.id).maybeSingle();
-   if(canceled)return;
-   if(error){setNotice('Cloud save unavailable: '+error.message);return;}
-   if(data&&saved()){revision.current=data.updated_at;setConflict(data as CloudSave);return;}
-   if(data){revision.current=data.updated_at;resolved.current=true;localStorage.setItem(SAVE_KEY,JSON.stringify(data.game_state));window.dispatchEvent(new Event('silicon-hustle-reload'));setSaveStatus('CLOUD SAVE LOADED');}
-   else {resolved.current=true;if(saved())await pushSave(session.user.id);}
-  })();
-  return ()=>{canceled=true;};
- },[session?.user.id]);
- async function pushSave(userId:string){
-  if(!supabase||!saved()||!resolved.current){dirty.current=true;return;}
-  if(syncing.current){dirty.current=true;return;}
-  syncing.current=true;dirty.current=false;
-  try{
-   const snapshot=saved()!;
-   const game_state=JSON.parse(snapshot);
-   const previous=revision.current;
-   const nextTime=new Date().toISOString();
-   if(previous){
-    const {data,error}=await supabase.from('game_saves').update({game_state,updated_at:nextTime}).eq('user_id',userId).eq('updated_at',previous).select('updated_at').maybeSingle();
-    if(error)throw error;
-    if(!data){
-     const latest=await supabase.from('game_saves').select('user_id,game_state,updated_at').eq('user_id',userId).maybeSingle();
-     if(latest.error)throw latest.error;
-     if(latest.data){revision.current=latest.data.updated_at;resolved.current=false;setConflict(latest.data as CloudSave);setSaveStatus('SAVE CONFLICT — CHOOSE A VERSION');}
-     else {revision.current=null;dirty.current=true;}
-     return;
-    }
-    revision.current=data.updated_at;
-   }else{
-    const {data,error}=await supabase.from('game_saves').insert({user_id:userId,game_state,updated_at:nextTime}).select('updated_at').single();
-    if(error){
-     if(error.code==='23505'){
-      const latest=await supabase.from('game_saves').select('user_id,game_state,updated_at').eq('user_id',userId).maybeSingle();
-      if(latest.data){revision.current=latest.data.updated_at;resolved.current=false;setConflict(latest.data as CloudSave);setSaveStatus('SAVE CONFLICT — CHOOSE A VERSION');return;}
-     }
-     throw error;
-    }
-    revision.current=data.updated_at;
-   }
-   setSaveStatus('CLOUD SAVE SYNCED');
-   if(saved()!==snapshot)dirty.current=true;
-  }catch(error){setSaveStatus('CLOUD SAVE FAILED');setNotice('Cloud save failed. Your progress remains on this device. '+(error instanceof Error?error.message:''));}
-  finally{
-   syncing.current=false;
-   if(dirty.current&&resolved.current&&revision.current!==null)void pushSave(userId);
-  }
- }
+  const failed=(event:Event)=>setDeviceError((event as CustomEvent).detail==='changed'?'A save changed in another tab. Reload before playing; the newer saved copy is unchanged.':(event as CustomEvent).detail==='format'?'This save needs a different game version or recovery. Export it or open Saved Games; the original is unchanged.':'Device storage is unavailable. Your last saved game is unchanged. Free storage before continuing.');
+  window.addEventListener('silicon-hustle-save-error',failed);
+  return ()=>window.removeEventListener('silicon-hustle-save-error',failed);
+ },[]);
  useEffect(()=>{
-  if(!supabase||!session?.user.id||conflict)return;
+  setResume(null);
+  const id=session?.user.id;if(!supabase||!id)return;
+  let active=true;
+  const current=new ResumeCoordinator(id,localStorage,{
+   identity:async()=>{const {data,error}=await supabase!.auth.getUser();if(error)throw error;return data.user;},
+   read:()=>withSaveTimeout(async signal=>{const {data,error}=await supabase!.from('game_saves').select('user_id,game_state,updated_at').eq('user_id',id).retry(false).abortSignal(signal).maybeSingle();if(error)throw error;return data;}),
+   write:(expected,snapshot)=>withSaveTimeout(async signal=>{
+    const payload={game_state:snapshot,updated_at:new Date().toISOString()};
+    // Both comparisons are atomic PostgREST filters; no timestamp ordering or upsert.
+    const query=expected?supabase!.from('game_saves').update(payload).eq('user_id',id).eq('updated_at',expected.updated_at).eq('game_state',JSON.stringify(expected.game_state)):supabase!.from('game_saves').insert({...payload,user_id:id});
+    const {data,error}=await query.select('user_id,game_state,updated_at').retry(false).abortSignal(signal).maybeSingle();
+    if(error){if(error.code==='23505')return null;throw error;}return data;
+   })
+  },view=>{if(active)setResume(view);},()=>{if(active)window.dispatchEvent(new Event('silicon-hustle-reload'));});
+  coordinator.current=current;
   let timer:ReturnType<typeof setTimeout>|undefined;
-  const onSave=()=>{clearTimeout(timer);timer=setTimeout(()=>{void pushSave(session.user.id);},900);};
-  window.addEventListener('silicon-hustle-save',onSave);
-  return ()=>{window.removeEventListener('silicon-hustle-save',onSave);clearTimeout(timer);};
- },[session?.user.id,conflict]);
+  const saved=()=>{setDeviceError('');current.noteDeviceChange();clearTimeout(timer);timer=setTimeout(()=>void current.check(),900);};
+  const newGame=()=>current.newGame();
+  const refresh=()=>{if(document.visibilityState!=='hidden')void current.check();};
+  const otherTab=()=>{pauseDeviceWrites();current.stop();if(active)setResume({status:'SAVE REVIEW NEEDED',notice:'A save changed in another tab. Reload before syncing.',choice:false,checking:false,device:null,cloud:null});};
+  const storage=(event:StorageEvent)=>{if(event.key==='silicon-hustle-v04'||event.key?.startsWith('silicon-hustle-resume-v1:'))otherTab();};
+  window.addEventListener('silicon-hustle-save',saved);window.addEventListener('silicon-hustle-new-game',newGame);window.addEventListener('online',refresh);window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh);window.addEventListener('storage',storage);
+  let nativeListener:{remove():Promise<void>}|undefined;
+  if(native)void App.addListener('appStateChange',state=>{if(state.isActive)refresh();}).then(handle=>{if(!active)void handle.remove();else nativeListener=handle;});
+  void current.check();
+  return ()=>{active=false;current.stop();if(coordinator.current===current)coordinator.current=null;clearTimeout(timer);window.removeEventListener('silicon-hustle-save',saved);window.removeEventListener('silicon-hustle-new-game',newGame);window.removeEventListener('online',refresh);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);window.removeEventListener('storage',storage);void nativeListener?.remove();};
+ },[session?.user.id]);
+ useEffect(()=>{
+  if(!resume?.choice)return;
+  const dialog=document.querySelector<HTMLElement>('.sh-save-picker');
+  const previous=document.activeElement as HTMLElement|null;
+  const buttons=()=>Array.from(dialog?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')||[]);
+  buttons()[0]?.focus();
+  const key=(event:KeyboardEvent)=>{
+   if(event.key==='Escape'&&!coordinator.current?.view.checking){event.preventDefault();coordinator.current?.closeReview();}
+   if(event.key!=='Tab')return;
+   const available=buttons(),first=available[0],last=available.at(-1);
+   if(!first)return;
+   if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}
+   else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+  };
+  dialog?.addEventListener('keydown',key);
+  return ()=>{dialog?.removeEventListener('keydown',key);if(previous?.isConnected)previous.focus();};
+ },[resume?.choice]);
+ function exportSaves(){try{const text=coordinator.current?.exportRecovery()??JSON.stringify({device:deviceRaw(localStorage),deviceRecovery:localStorage.getItem(DEVICE_RECOVERY_KEY)},null,2);const url=URL.createObjectURL(new Blob([text],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='silicon-hustle-save-recovery.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch{setDeviceError('Could not export recovery copies. Device storage may be unavailable.');}}
  async function signInGoogle(){
   if(!supabase){setNotice('Google sign-in will be available after Supabase is configured.');return;}
   setBusy(true);setNotice('');
@@ -199,21 +188,14 @@ return () => {
   }catch(error){setNotice(error instanceof Error?error.message:'Could not send sign-in email.');}
   finally{setBusy(false);}
  }
- async function chooseSave(useCloud:boolean){
-  if(!conflict||!session||!supabase)return;
-  const latest=await supabase.from('game_saves').select('user_id,game_state,updated_at').eq('user_id',session.user.id).maybeSingle();
-  if(latest.error){setNotice('Could not verify latest cloud save. Try again.');return;}
-  if(latest.data&&latest.data.updated_at!==conflict.updated_at){revision.current=latest.data.updated_at;setConflict(latest.data as CloudSave);setNotice('Cloud save changed again. Review the latest version.');return;}
-  revision.current=latest.data?.updated_at||null;
-  if(useCloud){if(latest.data){localStorage.setItem(SAVE_KEY,JSON.stringify(latest.data.game_state));window.dispatchEvent(new Event('silicon-hustle-reload'));}resolved.current=true;setConflict(null);setSaveStatus('CLOUD SAVE LOADED');}
-  else {resolved.current=true;setConflict(null);await pushSave(session.user.id);}
-  setNotice(useCloud?'Cloud save loaded.':'Local save selected.');
- }
  return <>
-  {!welcome&&<div className="sh-account"><span>{session?.user.email?'FOUNDER: '+session.user.email:'GUEST MODE · SAVED ON THIS DEVICE'}</span>{session&&<span role="status">{saveStatus}</span>}<button onClick={()=>{setNotice('');setShowAuth(true);}}>{session?'ACCOUNT':'SIGN IN / CLOUD SAVE'}</button></div>}
+  {!welcome&&<div className="sh-account"><span>{session?.user.email?'FOUNDER: '+session.user.email:'GUEST MODE · SAVED ON THIS DEVICE'}</span>{session&&<span role="status">{resume?.status}</span>}<button onClick={()=>{setNotice('');setShowAuth(true);}}>{session?'ACCOUNT':'SIGN IN / CLOUD SAVE'}</button></div>}
+  {deviceError&&<div className="sh-note" role="alert">{deviceError}<button className="sh-link" onClick={exportSaves}>EXPORT DEVICE SAVE</button></div>}
+  {session&&resume?.notice&&!resume.choice&&<p className="sh-note" role="status">{resume.notice}</p>}
   {ready&&children}
   {welcome&&<div className="sh-gate" role="dialog" aria-modal="true" aria-label="Welcome to Silicon Hustle"><div className="sh-welcome"><div className="sh-eyebrow">SILICON HUSTLE // EST. 2026</div><h1>WELCOME, FOUNDER.</h1><div className="sh-portrait"><img src="/founder.png" alt="Pixel-art portrait of the Silicon Hustle founder" onError={e=>{e.currentTarget.style.display='none';}}/></div><p className="sh-quote">“Every unicorn starts with a questionable decision.”</p><p className="sh-sub">You've got $5 million, 30 months, and investors with opinions. What could possibly go wrong?</p><button className="sh-primary" onClick={()=>{localStorage.setItem(WELCOME_KEY,'yes');setWelcome(false);}}>LET'S HUSTLE →</button><button className="sh-link" onClick={()=>{localStorage.setItem(WELCOME_KEY,'yes');setWelcome(false);setShowAuth(true);}}>SIGN IN TO SAVE ACROSS DEVICES</button></div></div>}
-  {showAuth&&<div className="sh-gate" role="presentation"><section className="sh-dialog" role="dialog" aria-modal="true" aria-label="Founder account"><button className="sh-close" onClick={()=>setShowAuth(false)} aria-label="Close">✕</button><div className="sh-eyebrow">FOUNDER ACCESS</div><h2>{session?'YOUR ACCOUNT':'SAVE YOUR EMPIRE.'}</h2>{session?<><p>Signed in as {session.user.email||'founder'}.</p><p>Your progress can sync across devices when cloud saves are configured.</p><button className="sh-primary" onClick={()=>{setShowAuth(false);}}>CONTINUE PLAYING</button><button className="sh-link" onClick={async()=>{await supabase?.auth.signOut();setShowAuth(false);setNotice('Signed out. This device keeps its local save.');}}>SIGN OUT</button></>:<><p>Play for free without an account. Sign in when you want to keep your empire across devices.</p><button className="sh-google" onClick={signInGoogle} disabled={busy||!supabase}>CONTINUE WITH GOOGLE</button><div className="sh-divider">OR EMAIL A MAGIC LINK</div><form onSubmit={signInEmail}><label htmlFor="sh-email">EMAIL ADDRESS</label><input id="sh-email" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="founder@example.com" required/><button className="sh-primary" disabled={busy||!supabase} type="submit">EMAIL ME A SIGN-IN LINK</button></form>{!supabase&&<p className="sh-note">Account sign-in is being configured. Guest play works now.</p>}<button className="sh-link" onClick={()=>setShowAuth(false)}>KEEP PLAYING AS GUEST →</button></>}{notice&&<p className="sh-note" role="status">{notice}</p>}</section></div>}
-  {conflict&&<div className="sh-gate"><section className="sh-dialog" role="dialog" aria-modal="true" aria-label="Choose your game save"><div className="sh-eyebrow">SAVE CONFLICT</div><h2>WHICH EMPIRE?</h2><p>We found a cloud save and a save on this device. Choose which one to keep. The other will be replaced.</p><button className="sh-primary" onClick={()=>void chooseSave(true)}>USE CLOUD SAVE</button><button className="sh-google" onClick={()=>void chooseSave(false)}>KEEP THIS DEVICE'S SAVE</button></section></div>}
+  {showAuth&&<div className="sh-gate" role="presentation"><section className="sh-dialog" role="dialog" aria-modal="true" aria-label="Founder account"><button className="sh-close" onClick={()=>setShowAuth(false)} aria-label="Close">✕</button><div className="sh-eyebrow">FOUNDER ACCESS</div><h2>{session?'YOUR ACCOUNT':'SAVE YOUR EMPIRE.'}</h2>{session?<><p>Signed in as {session.user.email||'founder'}.</p><p>Your progress can sync across devices when cloud saves are configured.</p><button className="sh-primary" onClick={()=>{setShowAuth(false);}}>CONTINUE PLAYING</button><button className="sh-primary" onClick={()=>{setShowAuth(false);void coordinator.current?.review();}}>SAVED GAMES</button><button className="sh-link" onClick={async()=>{coordinator.current?.stop();await supabase?.auth.signOut();setShowAuth(false);setNotice('Signed out. This device keeps its local save.');}}>SIGN OUT</button></>:<><p>Play for free without an account. Sign in when you want to keep your empire across devices.</p><button className="sh-google" onClick={signInGoogle} disabled={busy||!supabase}>CONTINUE WITH GOOGLE</button><div className="sh-divider">OR EMAIL A MAGIC LINK</div><form onSubmit={signInEmail}><label htmlFor="sh-email">EMAIL ADDRESS</label><input id="sh-email" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="founder@example.com" required/><button className="sh-primary" disabled={busy||!supabase} type="submit">EMAIL ME A SIGN-IN LINK</button></form>{!supabase&&<p className="sh-note">Account sign-in is being configured. Guest play works now.</p>}<button className="sh-link" onClick={()=>setShowAuth(false)}>KEEP PLAYING AS GUEST →</button></>}{notice&&<p className="sh-note" role="status">{notice}</p>}</section></div>}
+  {resume?.choice&&session&&<div className="sh-gate"><section className="sh-dialog sh-save-picker" role="dialog" aria-modal="true" aria-label="Choose your game save"><div className="sh-eyebrow">SAVED GAMES</div><h2>PICK UP WHERE YOU LEFT OFF</h2><p>Choose the game to continue. Recovery copies are kept on this device before either save is replaced.</p><p>Device: {saveSummary(parseSave(resume.device))}</p><p>Cloud: {resume.checking?'Checking…':resume.status==='DEVICE PLAY · SYNC PAUSED'?'Unavailable · reconnect to check':saveSummary(resume.cloud?.game_state)}</p><button className="sh-primary" disabled={resume.checking||resume.status==='DEVICE PLAY · SYNC PAUSED'||!validSave(resume.cloud?.game_state)} onClick={()=>void coordinator.current?.choose('cloud')}>USE CLOUD SAVE</button><button className="sh-google" disabled={resume.checking||resume.status==='DEVICE PLAY · SYNC PAUSED'||!parseSave(resume.device)} onClick={()=>void coordinator.current?.choose('device')}>KEEP THIS DEVICE'S SAVE</button>{resume.notice&&<p className="sh-note" role="status">{resume.notice}</p>}<button className="sh-link" onClick={exportSaves}>EXPORT RECOVERY COPIES</button><button className="sh-link" disabled={resume.checking} onClick={()=>coordinator.current?.closeReview()}>CONTINUE ON THIS DEVICE</button></section></div>}
+
  </>;
 }
