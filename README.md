@@ -44,13 +44,11 @@ BUY and SELL include quantity controls, MAX buying, ALL selling, cost/proceeds p
 
 On mobile, Market appears before the collapsed My Portfolio section. Expand the portfolio for labeled financial details; tap a holding to trade without navigating away.
 
-## Rankings
+## Rankings / THE OVERLORD
 
-Rankings remains an optional online feature, requested when you open Rankings: browse public scores without signing in, view your standard-game personal best, and compare against the separate **MOGABR developer benchmark of $74,610,431,012.27**. Optional sign-in can identify your existing published record.
+The **RANKINGS** navigation button opens **THE OVERLORD**, a fictional Coming Soon financial dashboard with a gold crown, dark-green panel and shared desktop/mobile visual identity. **MOGABR** is the permanent Boss of Bosses with an estimated empire valuation of **$999,999,999,999,999.99**. This is satirical presentation, not a verified player entry or a live leaderboard.
 
-**Score publishing and founder-name editing are paused in this release.** Their previous ownership check required a matching server save. Removing synchronization does not silently weaken that check or replace it with unverified account attribution. Existing published records are unchanged; a separate local-only attribution design is needed before publication resumes.
-
-**Early Access · Rankings are based on player-submitted scores.** Scores are not independently verified. The benchmark is a developer reference, not a player submission.
+Cycle six system notices with **Next Notice**. The page works offline without Supabase configuration or sign-in, makes no leaderboard requests or score submissions, and does not write game or account storage. Existing Rankings implementation files, published records and founder names are retained unchanged; live browsing, publishing and name editing are not exposed by this page.
 
 ## One device, one game
 
@@ -65,17 +63,17 @@ Clearing browser/app storage or deleting the installed app can remove the game a
 | Feature | Supabase requirements |
 | --- | --- |
 | Gameplay, local saves, Founder’s Gamble and achievements | None |
-| Public Rankings reads | Project URL, public key, and the deployed Rankings read RPC; no sign-in required |
-| Viewing your existing published record | Optional configured Google/email authentication |
+| THE OVERLORD placeholder and manual system notices | None; no leaderboard requests |
+| Optional account sign-in | Configured Supabase Google/email authentication; not required for THE OVERLORD |
 | Score publishing and founder-name editing | Paused; no submission requests are sent |
 
-See [optional Rankings authentication](AUTH_SETUP.md). Existing SQL files are historical setup assets, not instructions to change production for this release. No schema change or migration is needed.
+See [optional account authentication](AUTH_SETUP.md). Existing SQL files are historical setup assets, not instructions to change production for this release. No schema change or migration is needed.
 
 ## Platforms and technology
 
 - **Web:** React, TypeScript, and Vite, hosted on Vercel.
 - **iOS:** Capacitor packages the same React interface and trading handlers in the native application. The app has been successfully installed and played on a physical iPhone through Xcode.
-- **Backend:** Optional Supabase authentication and public Rankings reads.
+- **Backend:** Optional Supabase authentication. Existing Rankings code/data are preserved, but the active Coming Soon page does not request them.
 
 The package version is **0.9.0**. There is no App Store or TestFlight release.
 
@@ -89,7 +87,7 @@ cd silicon-hustle
 npm install
 ```
 
-For guest-only development, leave the Supabase variables unset. To enable account and Rankings features, copy the environment template and replace its placeholders with your own development project's URL and public publishable/anon key before starting:
+For guest-only development, leave the Supabase variables unset. To enable optional account features, copy the environment template and replace its placeholders with your own development project's URL and public publishable/anon key before starting:
 
 ```bash
 cp .env.example .env.local
@@ -119,7 +117,7 @@ npm run preview
 
 The browser regression suite uses isolated profiles, synthetic data, and intercepted backend requests. It requires an installed Chrome/Chromium browser; its default path is Google Chrome on macOS. Set `CHROME_BIN` to another compatible executable if needed. Missing Chrome results in a skipped browser suite. Use a full Git checkout: regression tests compare against historical source commits.
 
-The build type-checks TypeScript and generates `dist/`; `preview` serves that build locally. In Vercel, use `npm run build` and output directory `dist`. Account and Rankings features need the two public environment variables in each intended Vercel environment, including Preview when testing there; they are embedded at build time.
+The build type-checks TypeScript and generates `dist/`; `preview` serves that build locally. In Vercel, use `npm run build` and output directory `dist`. Optional account features need the two public environment variables in each intended Vercel environment, including Preview when testing there; they are embedded at build time.
 
 ## iOS development
 
@@ -148,8 +146,8 @@ See the [iOS validation checklist](IOS_SETUP.md#release-checklist) and [trading 
 
 ## Current limitations
 
-- Rankings uses player-submitted scores, not independently verified results or an anti-cheat system.
-- Games do not transfer between devices. Optional native Rankings sign-in, recovery export and local persistence across app updates/reinstallation still need physical-device validation.
+- Live Rankings is unavailable in the active UI. THE OVERLORD is fictional and does not represent verified scores. Existing historical scores remain player-submitted.
+- Games do not transfer between devices. Optional native account sign-in, recovery export and local persistence across app updates/reinstallation still need physical-device validation.
 - Older saves without a reliable previous-month price display **Unavailable** until a subsequent month transition provides a baseline.
 - The iOS app is a development build run through Xcode, with no App Store or TestFlight release.
 

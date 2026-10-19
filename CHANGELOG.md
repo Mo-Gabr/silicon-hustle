@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Changed
+
+- THE OVERLORD now follows the supplied financial-dashboard reference: one rounded dark-green panel, gold crown and accents, restrained sans-serif hierarchy, and matching card treatment on desktop and mobile.
+
+- THE OVERLORD’s deliberately fictional empire valuation is now $999,999,999,999,999.99, independent of gameplay and leaderboard records.
+
+- The RANKINGS destination is now THE OVERLORD, a fictional Coming Soon terminal starring MOGABR as the permanent Boss of Bosses. Active leaderboard/provider observation is disconnected; existing Rankings code, backend data, authentication, gameplay and local saves are unchanged.
+
+### Added
+
+- Six manually cycled system notices with an accessible Next Notice button and counter. THE OVERLORD supports mobile widths and enlarged text without network requests or persistent state.
+
 ### Fixed
 
 - Removed the temporary diagnostic startup pause and Account diagnostic entry. Normal gameplay resumes without sign-in. A one-time choice recovers a valid historical Month 42 game or keeps the current local game, preserves both originals before activation, and remembers the choice across launches. Completed runs keep their original outcomes.

@@ -1,0 +1,34 @@
+/* One responsive financial-dashboard identity, isolated from the game UI. */
+.overlord{--overlord-gold:#ebc67b;--overlord-muted:#b6c4b9;box-sizing:border-box;width:100%;max-width:768px;min-width:0;margin:20px auto 0;padding:16px;border:1px solid #b89b53;border-radius:17px;background:#112d23;color:#e5e9df;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:400;line-height:1.5}
+.overlord *{box-sizing:border-box}
+.overlord .overlord-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:nowrap;gap:10px;border:0;border-bottom:1px solid #47604c;padding:0 0 23px;margin:0 0 24px}
+.overlord .overlord-heading p{min-width:0;flex:1;display:flex;align-items:center;gap:8px;margin:0;color:#f0ca74;font-size:12px;font-weight:400;line-height:1.4;letter-spacing:0}
+.overlord .overlord-heading p span{min-width:0}
+.overlord-crown{width:16px;height:16px;flex:0 0 16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.overlord-coming{flex:0 0 auto;padding:2px 8px;border:0;border-radius:999px;background:#44391f;color:#ff7900;font-size:12px;line-height:1.4;letter-spacing:0;white-space:nowrap}
+.overlord-empire{padding:0;border:0;border-radius:0;background:none;box-shadow:none}
+.overlord-classification{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 14px;color:#dfba65;font-size:12px;line-height:1.5;letter-spacing:0}
+.overlord-classification>span:last-child{font-size:9px;color:#a9b6a5;letter-spacing:.015em}
+.overlord h2{margin:18px 0 10px;color:#fff0c9;font-family:inherit;font-size:24px;font-weight:600;line-height:1.3;letter-spacing:-.025em}
+.overlord-byline{margin:0;color:#ddc48e;font-size:14px;line-height:1.5}
+.overlord-valuation{display:grid;gap:3px;min-width:0;margin:0;padding:14px 0 20px}
+.overlord-valuation strong{min-width:0;color:var(--overlord-gold);font-size:clamp(18px,5.3vw,26px);font-weight:600;font-variant-numeric:tabular-nums;line-height:1.3;letter-spacing:0;white-space:nowrap}
+.overlord-valuation>span{color:var(--overlord-muted);font-size:13px;font-weight:400;line-height:1.5;letter-spacing:0}
+.overlord-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px 14px;margin:0;padding:18px 0 20px;border-top:1px solid #47604c;border-bottom:1px solid #47604c}
+.overlord-metrics>div{min-width:0;padding:0}
+.overlord-metrics dt{margin:0;color:#adbba9;font-size:9px;font-weight:400;line-height:1.5;letter-spacing:.025em}
+.overlord-metrics dd{margin:2px 0 0;color:#ffe7ae;font-size:14px;font-weight:400;line-height:1.4;overflow-wrap:anywhere}
+.overlord blockquote{margin:20px 0 12px;padding:0;border:0;color:#e8eee4;font-size:16px;font-weight:400;font-style:normal;line-height:1.5}
+.overlord-story{max-width:none;margin:0;color:#bdcabe;font-size:14px;line-height:1.5}
+.overlord-system{margin-top:12px;padding:12px;border:0;border-radius:8px;background:#203f31}
+.overlord-system h3{display:flex;align-items:center;gap:8px;margin:0 0 10px;color:#f0ca74;font-size:12px;font-weight:400;line-height:1.5;letter-spacing:0}
+.overlord-system h3 svg{width:16px;height:16px;flex:0 0 16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.overlord-unavailable{margin:0;color:#ced9cd;font-size:14px;line-height:1.5}
+.overlord-notice{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:12px;min-height:36px;margin-top:12px;padding-top:10px;border-top:1px solid #3e5946;color:#bdcabe;font-size:13px;line-height:1.5}
+.overlord-notice p{margin:0;overflow-wrap:anywhere}
+.overlord-notice>span{color:#d7dcbf;font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.overlord-system button{display:block;max-width:100%;min-height:44px;margin:8px 0 0 auto;padding:8px 14px;border:1px solid #a28d55;border-radius:6px;background:#294735;color:#f0d69b;font:400 12px Arial,Helvetica,sans-serif;line-height:1.4;letter-spacing:0;cursor:pointer}
+.overlord-system button:hover{border-color:#ebc67b;background:#304f3b}
+.overlord-system button:focus-visible{outline:2px solid #f0d69b;outline-offset:3px}
+.overlord-footer{margin:10px 0 0;color:#e0c274;text-align:center;font-size:12px;font-weight:400;line-height:1.5;letter-spacing:0;overflow-wrap:anywhere}
+@media(max-width:480px){.overlord{margin-top:14px;padding:16px;border-radius:17px}.overlord .overlord-heading{gap:10px;padding-bottom:18px;margin-bottom:20px}.overlord .overlord-heading p{font-size:11px;gap:6px}.overlord-coming{font-size:11px}.overlord-classification{font-size:11px}.overlord-metrics{gap:12px}.overlord-metrics dd{font-size:13px}.overlord-valuation>span{font-size:12px}.overlord-footer{font-size:11px}}

@@ -9,7 +9,7 @@ import {join} from 'node:path';
 import http from 'node:http';
 import {build} from 'esbuild';
 const chrome=process.env.CHROME_BIN||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const base='62aa1706d2f5bfb97b56483fda4c1cf0d656f53d';
+const base='2794bd8eb05f1b4f98e21a67b6f839206e239bf2';
 const uid='00000000-0000-4000-8000-000000000101';
 const user={id:uid,aud:'authenticated',role:'authenticated',email:'synthetic@example.invalid',created_at:'2026-01-01T00:00:00Z'};
 const game=()=>({month:3,cash:5000000,prices:Object.fromEntries(['l40s','a100','h100','h200','b200','mi300','mi325','gaudi'].map(k=>[k,34000])),positions:{},labs:0,headline:'SYNTHETIC ONLY',history:[],ended:false,ending:'',seed:42,threat:null,threatHistory:[],crisisResult:null});
@@ -18,7 +18,7 @@ let available=true;try{await access(chrome);}catch{available=false;}
 test('offline browser: local gameplay parity, read-only Rankings and Founders Gamble',{skip:!available?'Chrome not installed; set CHROME_BIN':false,timeout:120000},async()=>{
  const root=await mkdtemp(join(tmpdir(),'silicon-board-release-browser-'));
  for(const variant of ['main','release','missingurl','missingkey','missingboth','invalidurl']){
-  await build({entryPoints:['src/main.tsx'],bundle:true,format:'esm',outdir:join(root,variant),entryNames:'app',jsx:'automatic',define:{'import.meta.env.VITE_SUPABASE_URL':(variant==='missingurl'||variant==='missingboth')?'undefined':variant==='invalidurl'?JSON.stringify('invalid-url'):JSON.stringify('https://supabase.test'),'import.meta.env.VITE_SUPABASE_ANON_KEY':(variant==='missingkey'||variant==='missingboth')?'undefined':JSON.stringify('sb_publishable_SYNTHETIC_ONLY')},plugins:variant==='main'?[{name:'baseline-main',setup(b){b.onLoad({filter:/\/src\/main\.tsx$/},()=>({contents:execFileSync('git',['show',base+':src/main.tsx'],{encoding:'utf8'}),loader:'tsx'}));}}]:[]});
+  await build({entryPoints:['src/main.tsx'],bundle:true,format:'esm',outdir:join(root,variant),entryNames:'app',jsx:'automatic',define:{'import.meta.env.VITE_SUPABASE_URL':(variant==='missingurl'||variant==='missingboth')?'undefined':variant==='invalidurl'?JSON.stringify('invalid-url'):JSON.stringify('https://supabase.test'),'import.meta.env.VITE_SUPABASE_ANON_KEY':(variant==='missingkey'||variant==='missingboth')?'undefined':JSON.stringify('sb_publishable_SYNTHETIC_ONLY')},plugins:variant==='main'?[{name:'baseline-main',setup(b){b.onLoad({filter:/\/src\/.*\.(tsx?|css)$/},args=>({contents:execFileSync('git',['show',base+':'+args.path.slice(process.cwd().length+1)],{encoding:'utf8'}),loader:args.path.endsWith('.css')?'css':args.path.endsWith('.tsx')?'tsx':'ts'}));}}]:[]});
  }
  const server=http.createServer(async(req,res)=>{const m=req.url.match(/^\/(main|release|missingurl|missingkey|missingboth|invalidurl)\/(app\.(?:js|css))$/);if(m){res.setHeader('Content-Type',m[2].endsWith('js')?'text/javascript':'text/css');res.end(await readFile(join(root,m[1],m[2])));return;}if(/^\/(main|release|missingurl|missingkey|missingboth|invalidurl)\/$/.test(req.url)){const v=req.url.split('/')[1];res.setHeader('Content-Type','text/html');res.end(`<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><div id="root"></div><link rel="stylesheet" href="/${v}/app.css"><script type="module" src="/${v}/app.js"></script>`);return;}res.writeHead(404);res.end();});
  await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;
@@ -37,6 +37,7 @@ test('offline browser: local gameplay parity, read-only Rankings and Founders Ga
    if(m.method!=='Fetch.requestPaused')return;
    const {requestId,request}=m.params,url=new URL(request.url);
    if(url.protocol!=='https:'){await send('Fetch.continueRequest',{requestId},m.sessionId);return;}
+   if(url.pathname.startsWith('/rest/v1/rpc/')||url.pathname.startsWith('/functions/v1/'))(state.rankingRequests??=[]).push(url.pathname);
    let body=null,status=200;
    try{
     assert.equal(url.origin,'https://supabase.test');
@@ -215,7 +216,7 @@ test('offline browser: local gameplay parity, read-only Rankings and Founders Ga
     await press('EXIT THIS CHAPTER');await press('CONFIRM EXTENDED EXIT');result=await saved();assert.equal(result.ended,true);assert.equal(result.gamble.extensionOutcome.reason,'early');assert.deepEqual(result.gamble.standardResult,standard);assert.equal(result.gamble.extensionOutcome.mogabr,false);assert.ok(await evaluate(`document.querySelector('.dual-result').textContent.includes('STANDARD MONTH 30: VICTORY')`));
     await press('VIEW FINAL DASHBOARD');assert.equal(await evaluate(`!!document.querySelector('button.next')&&document.querySelector('button.next').textContent.includes('VIEW FINAL COVER')`),true);
     const shot=await send('Page.captureScreenshot',{format:'png'},sessionId);await writeFile(join(root,'enterprise-'+boardWidth+'.png'),Buffer.from(shot.data,'base64'));
-    if(signed){await press('RANKINGS');await wait(`!!document.getElementById('board-title')`);assert.equal(state.saves.length,0);assert.equal(state.submits,0);assert.ok((await evaluate(`document.querySelector('.board-personal strong').textContent`)).includes(standard.peak.toLocaleString('en-US')));}
+    if(signed){await press('RANKINGS');await wait(`!!document.getElementById('overlord-title')`);assert.equal(state.saves.length,0);assert.equal(state.submits,0);assert.deepEqual(state.rankingRequests??[],[]);assert.equal(await evaluate(`document.getElementById('overlord-title').textContent`),'MOGABR');}
     else{assert.equal(state.submits,0);assert.equal(state.saves.length,0);const failure={...result,cash:-1,endingChoice:'bankrupt',gamble:{...result.gamble,unicornMonth:31,extensionOutcome:{...result.gamble.extensionOutcome,reason:'bankrupt',unicorn:true,mogabr:false}}};await evaluate(`localStorage.setItem('silicon-hustle-local-v1',${JSON.stringify(JSON.stringify(failure))});window.dispatchEvent(new Event('silicon-hustle-reload'))`);await wait(`!!document.querySelector('.final-cover')`);assert.ok(await evaluate(`document.querySelector('.final-cover .story-graphic').textContent.includes('SHUTDOWN')`));assert.ok(await evaluate(`document.querySelector('.dual-result').textContent.includes('UNICORN EARNED')`));assert.deepEqual((await saved()).gamble.standardResult,standard);}
     assert.deepEqual(state.errors,[]);state.disposing=true;await send('Target.disposeBrowserContext',{browserContextId});states.delete(sessionId);console.log('PASS: enterprise '+boardWidth+' signed='+signed+' choice/reload/settlement/cancel/exit/score isolation; screenshot '+join(root,'enterprise-'+boardWidth+'.png'));return;
    }
@@ -226,20 +227,40 @@ test('offline browser: local gameplay parity, read-only Rankings and Founders Ga
    if(rankingsCase==='blocked')state.row.game_state={...afterGame,cash:afterGame.cash+1};
    const saveTraffic=structuredClone(state.saves),savedBefore=JSON.stringify(state.row),localBefore=JSON.stringify(afterGame);
    if(board){
-    await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='RANKINGS').click()`);await wait(`!!document.querySelector('.board-empty')||!!document.querySelector('.board-rankings')||!!document.querySelector('.board-notice')`);
-    assert.equal(await evaluate(`document.getElementById('board-title').textContent`),'RANKINGS');
-    assert.equal(await evaluate(`document.querySelector('.board-refresh').getAttribute('aria-label')`),'Refresh Rankings');
-    assert.equal(await evaluate(`document.querySelectorAll('.board-disclosure').length`),1);assert.equal(await evaluate(`document.querySelector('.board-disclosure').getClientRects().length>0`),true);assert.equal(await evaluate(`(document.querySelector('.billionaire-board').innerText.match(/Early Access/g)||[]).length`),1);
-    assert.equal(await evaluate(`document.querySelector('.board-disclosure').textContent`),'Early Access · Rankings are based on player-submitted scores.');
-    assert.equal(await evaluate(`!!document.querySelector('.board-integrity')`),false);
-    assert.equal(await evaluate(`/UNVERIFIED|v[0-9]+[.][0-9]+[.][0-9]+/i.test(document.querySelector('.board-rankings')?.textContent??'')`),false);
-
-    if(configurationMissing){assert.equal(state.reads,0);assert.match(await evaluate(`document.querySelector('.board-notice').textContent`),/Rankings is not configured for this deployment/);}
-    if(readError){assert.equal(state.reads,1);const notice=await evaluate(`document.querySelector('.board-notice').textContent`);assert.match(notice,/Rankings could not be reached/);assert.ok(!notice.includes('SYNTHETIC_PRIVATE_BACKEND_DETAIL'));}
-    assert.equal(state.submits,0,'Login/page/game actions cannot publish automatically');
-    if(publicEntry){assert.equal(state.reads,1);assert.equal(await evaluate(`document.querySelector('.board-rankings b')?.textContent`),signed?'Synthetic Public FounderYOU':'Synthetic Public Founder');assert.equal(await evaluate(`document.querySelector('.board-position')?.textContent`),'#1');assert.equal(await evaluate(`document.querySelector('.board-notice')?.textContent??''`),'');}
-    assert.equal(await evaluate(`!!document.querySelector('#founder-name')||!!document.querySelector('.board-publish')`),false);
-    assert.equal(state.submits,0);assert.equal(state.saves.length,0);
+    const allStorage=()=>evaluate(`JSON.stringify(Object.fromEntries(Object.keys(localStorage).sort().map(k=>[k,localStorage.getItem(k)])))`);
+    const beforeOverlord=await allStorage();
+    await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='RANKINGS').click()`);await wait(`!!document.getElementById('overlord-title')`);
+    assert.equal(await evaluate(`document.getElementById('overlord-title').textContent`),'MOGABR');
+    assert.equal(await evaluate(`document.querySelector('.overlord-heading p').getClientRects().length>0`),true,'Primary heading must remain visible under mobile header rules');
+    assert.ok(await evaluate(`document.querySelector('.overlord').innerText.includes('SILICON HUSTLE / THE OVERLORD')`));
+    assert.equal(await evaluate(`document.querySelector('.overlord-valuation strong').textContent`),'$999,999,999,999,999.99');
+    assert.ok(await evaluate(`(()=>{const e=document.querySelector('.overlord-valuation strong'),r=document.createRange();r.selectNodeContents(e);const box=r.getBoundingClientRect(),container=e.getBoundingClientRect();return e.scrollWidth<=e.clientWidth+1&&box.left>=container.left-1&&box.right<=container.right+1&&box.height<=parseFloat(getComputedStyle(e).lineHeight)+1;})()`),'The entire fictional valuation fits on one line without clipping');
+    assert.ok(await evaluate(`document.querySelector('.overlord').innerText.includes('COMING SOON')`));
+    assert.equal(await evaluate(`!!document.querySelector('.board-refresh')||!!document.querySelector('.board-publish')||!!document.querySelector('.board-rankings')`),false);
+    const notices=["NVIDIA has requested permission to manufacture more GPUs.","AGI has submitted its résumé to Mogabr.","Global compute availability is subject to Mogabr's approval.","Competing AI labs have been reclassified as hobby projects.","The world's datacenters have been consolidated under one billing account.","Antitrust regulators have requested a meeting. Their compute allocation is pending."];
+    const key=async(key,code,n)=>{await send('Input.dispatchKeyEvent',{type:'keyDown',key,code,windowsVirtualKeyCode:n,text:key==='Enter'?'\r':key===' '?' ':'',unmodifiedText:key==='Enter'?'\r':key===' '?' ':''},sessionId);await send('Input.dispatchKeyEvent',{type:'keyUp',key,code,windowsVirtualKeyCode:n},sessionId);await sleep(30);};
+    for(let index=0;index<6;index++){
+     assert.equal(await evaluate(`document.querySelector('.overlord-notice p').textContent`),notices[index]);assert.equal(await evaluate(`document.querySelector('.overlord-notice>span').textContent`),(index+1)+' / 6');
+     await evaluate(`document.querySelector('.overlord-system button').focus()`);assert.equal(await evaluate(`document.activeElement===document.querySelector('.overlord-system button')`),true);
+     if(index===0)await key('Enter','Enter',13);else if(index===1)await key(' ','Space',32);else{await evaluate(`document.querySelector('.overlord-system button').click()`);await sleep(20);}
+     await wait(`document.querySelector('.overlord-notice>span').textContent==='${(index+1)%6+1} / 6'`);
+    }
+    assert.equal(await evaluate(`document.querySelector('.overlord-notice p').textContent`),notices[0]);
+    assert.equal(await allStorage(),beforeOverlord,'Opening and cycling THE OVERLORD cannot write any storage');
+    await sleep(100);assert.deepEqual(state.rankingRequests??[],[],'No leaderboard or Edge requests');assert.equal(state.reads,0);assert.equal(state.submits,0);assert.equal(state.saves.length,0);
+    assert.equal(await evaluate(`document.documentElement.scrollWidth>innerWidth`),false);
+    assert.ok(await evaluate(`document.querySelector('.overlord-system button').getBoundingClientRect().height>=44`));
+    if(boardWidth){
+     await evaluate(`document.querySelector('.overlord').scrollIntoView({block:'start'})`);
+     assert.ok(await evaluate(`getComputedStyle(document.querySelector('.overlord')).fontFamily.includes('Arial')`),'Mobile and desktop retain the reference sans-serif identity');
+     assert.ok(await evaluate(`!!document.querySelector('.overlord-crown path')`),'Reference crown remains present');
+     const clip=await evaluate(`(()=>{const r=document.querySelector('.overlord').getBoundingClientRect();return {x:r.left+scrollX,y:r.top+scrollY,width:r.width,height:r.height,scale:1};})()`);
+     const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip},sessionId);const imagePath=join(root,'overlord-'+boardWidth+(signed?'-signed':'')+'.png');await writeFile(imagePath,Buffer.from(shot.data,'base64'));console.log('Overlord screenshot: '+imagePath);
+     await evaluate(`document.querySelector('.overlord').style.fontSize='20px';document.querySelectorAll('.overlord p,.overlord dd,.overlord dt,.overlord button').forEach(e=>e.style.fontSize='20px')`);
+     assert.equal(await evaluate(`document.documentElement.scrollWidth>innerWidth`),false,'Enlarged text does not overflow');
+     assert.ok(await evaluate(`Array.from(document.querySelectorAll('.overlord-metrics dd')).every(e=>e.scrollWidth<=e.clientWidth+1)`));
+    }
+    await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='MARKET').click()`);await wait(`!!document.querySelector('.market')`);assert.equal(await allStorage(),beforeOverlord);
    }
    if(interactive){
     const saved=()=>evaluate(`JSON.parse((localStorage.getItem('silicon-hustle-local-v1')||localStorage.getItem('silicon-hustle-v04')||localStorage.getItem('compute-empire-v04')))`);
@@ -348,10 +369,10 @@ test('offline browser: local gameplay parity, read-only Rankings and Founders Ga
   await scenario('release',{localCase:'first',noLocal:true,signed:true,boardWidth:390});
   await scenario('release',{localCase:'offline',noLocal:true,signed:true,boardWidth:390});
   for(const interactive of ['desktop','mobile','small'])await scenario('release',{interactive});
-  await scenario('release',{board:true,publicEntry:true});console.log('PASS: configured anonymous client renders a populated Rankings response with rank, without sign-in, save requests or score writes');
-  for(const variant of ['missingurl','missingkey','missingboth','invalidurl']){await scenario(variant,{board:true,configurationMissing:true});console.log('PASS: missing Preview configuration '+variant+' makes no RPC and shows configuration error');}
-  await scenario('release',{board:true,readError:true});console.log('PASS: real RPC-not-found is distinct from missing configuration and does not echo backend details');
-  await scenario('release',{signed:true,board:true,publicEntry:true});console.log('PASS: signed-in Rankings is read-only with no save requests or score submission');
+  for(const boardWidth of [1280,390,320])await scenario('release',{board:true,publicEntry:true,boardWidth});console.log('PASS: THE OVERLORD exact value, manual accessible notices, unchanged storage and zero RPCs at desktop/mobile widths');
+  for(const variant of ['missingurl','missingkey','missingboth','invalidurl']){await scenario(variant,{board:true,configurationMissing:true});console.log('PASS: missing Preview configuration '+variant+' opens THE OVERLORD with no RPC or configuration dependency');}
+  await scenario('release',{board:true,readError:true});console.log('PASS: THE OVERLORD never requests a potentially unavailable Rankings backend');
+  await scenario('release',{signed:true,board:true,publicEntry:true,boardWidth:390});console.log('PASS: signed-in THE OVERLORD remains fictional with zero requests or storage writes');
 
   }
   for(const boardWidth of [1280,390,320])await scenario('release',{gambleCase:true,boardWidth});
