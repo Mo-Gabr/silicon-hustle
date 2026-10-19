@@ -33,7 +33,7 @@ test('name lookup is read-only and chosen names survive historical-save upgrades
   if(key!==LOCAL_KEY)assert.equal(disk.get(key),raw);
  }
 });
-test('header-only change preserves gameplay, persistence and Rankings implementations',()=>{
- for(const file of ['src/main.tsx','src/localSaves.ts','src/LocalRecovery.tsx','src/BillionaireBoard.tsx','src/boardAttribution.ts','src/leaderboardCore.ts','src/foundersGamble.ts','src/auth.css'])assert.equal(readFileSync(file,'utf8'),execFileSync('git',['show','25aa122:'+file],{encoding:'utf8'}),file);
+test('diagnostic wrapper preserves gameplay, persistence and Rankings implementations',()=>{
+ for(const file of ['src/main.tsx','src/localSaves.ts','src/LocalRecovery.tsx','src/BillionaireBoard.tsx','src/boardAttribution.ts','src/leaderboardCore.ts','src/foundersGamble.ts','src/auth.css'])assert.equal(file==='src/main.tsx'?readFileSync(file,'utf8').replace("import {SAVE_DIAGNOSTIC_BUILD} from './saveDiagnostics';\n",'').replace(/function Root\(\)\{if\(SAVE_DIAGNOSTIC_BUILD\)[\s\S]*?const GameRoot=\(\)=>\{/, 'function Root(){'):readFileSync(file,'utf8'),execFileSync('git',['show','25aa122:'+file],{encoding:'utf8'}),file);
  assert.ok(!readFileSync('src/AuthGate.tsx','utf8').includes('ONE DEVICE. ONE GAME.'));
 });

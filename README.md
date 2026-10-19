@@ -152,3 +152,9 @@ See the [iOS validation checklist](IOS_SETUP.md#release-checklist) and [trading 
 - Games do not transfer between devices. Optional native Rankings sign-in, recovery export and local persistence across app updates/reinstallation still need physical-device validation.
 - Older saves without a reliable previous-month price display **Unavailable** until a subsequent month transition provides a baseline.
 - The iOS app is a development build run through Xcode, with no App Store or TestFlight release.
+
+## Temporary iPhone save diagnostics
+
+This branch currently builds a read-only inspection screen instead of mounting gameplay. Startup autosave, trading, resets, and recovery writes are therefore unavailable. Open **Account → Save Diagnostics** without signing in. The view reads only the three known gameplay keys and their original-snapshot archive; Copy Summary excludes full snapshots and account data. Valuation is calculated using current game rules; historical snapshots without a version show “Not recorded.” An unsupported snapshot is not evidence of corruption.
+
+Install this inspection build over the existing app using the same bundle identifier; do not uninstall or clear app data. Use the existing iOS build/copy/Xcode workflow. Do not restore gameplay in this temporary build until the diagnostic results have been reviewed.

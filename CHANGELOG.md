@@ -13,6 +13,8 @@
 
 ### Added
 
+- Temporary Account → Save Diagnostics inspection build: summarizes only approved local snapshot keys and archived originals, identifies key-priority selection, and copies metadata without save contents. Gameplay is not mounted, preventing startup autosave and recovery writes during inspection.
+
 - One-device local autosave and resume, including Founder’s Gamble decisions, frozen Month 30 results and achievements, with compatible historical snapshot loading.
 - A compact incompatible-game recovery screen, preserved originals before explicit fresh starts, and storage/stale-window safeguards that keep the previous game on failure.
 
