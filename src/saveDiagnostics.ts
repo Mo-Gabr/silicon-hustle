@@ -1,7 +1,5 @@
 import {decodeLocal,GAME_KEYS,RECOVERY_KEY} from './localSaves';
 import {premium} from './foundersGamble';
-// Temporary physical-device investigation: never mount gameplay/autosave in this build.
-export const SAVE_DIAGNOSTIC_BUILD=true;
 type Reader={getItem:(key:string)=>string|null};
 export type DiagnosticRow={key:string;presence:string;selected:boolean;month:number|null;valuation:number|null;version:string;validation:string};
 function snapshot(key:string,raw:string,selected:boolean):DiagnosticRow{

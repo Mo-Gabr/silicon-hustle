@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Removed the temporary diagnostic startup pause and Account diagnostic entry. Normal gameplay resumes without sign-in. A one-time choice recovers a valid historical Month 42 game or keeps the current local game, preserves both originals before activation, and remembers the choice across launches. Completed runs keep their original outcomes.
+
 - The upper-left header shows the local game profile’s chosen founder/display name, including legacy name metadata, with “Founder” for unnamed games. It never substitutes an account or Rankings identity and does not change saved data.
 
 ### Removed
@@ -13,7 +15,6 @@
 
 ### Added
 
-- Temporary Account → Save Diagnostics inspection build: summarizes only approved local snapshot keys and archived originals, identifies key-priority selection, and copies metadata without save contents. Gameplay is not mounted, preventing startup autosave and recovery writes during inspection.
 
 - One-device local autosave and resume, including Founder’s Gamble decisions, frozen Month 30 results and achievements, with compatible historical snapshot loading.
 - A compact incompatible-game recovery screen, preserved originals before explicit fresh starts, and storage/stale-window safeguards that keep the previous game on failure.

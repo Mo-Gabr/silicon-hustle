@@ -153,8 +153,8 @@ See the [iOS validation checklist](IOS_SETUP.md#release-checklist) and [trading 
 - Older saves without a reliable previous-month price display **Unavailable** until a subsequent month transition provides a baseline.
 - The iOS app is a development build run through Xcode, with no App Store or TestFlight release.
 
-## Temporary iPhone save diagnostics
+## Local save recovery after the diagnostic build
 
-This branch currently builds a read-only inspection screen instead of mounting gameplay. Startup autosave, trading, resets, and recovery writes are therefore unavailable. Open **Account → Save Diagnostics** without signing in. The view reads only the three known gameplay keys and their original-snapshot archive; Copy Summary excludes full snapshots and account data. Valuation is calculated using current game rules; historical snapshots without a version show “Not recorded.” An unsupported snapshot is not evidence of corruption.
+Normal gameplay and local autosave are restored. If a valid historical Month 42 game is hidden by an earlier local game, a one-time **Choose Your Game** screen recommends Month 42 and lets you keep either game. Nothing is replaced until you choose. Both original snapshots are retained in the local recovery archive before the selected game becomes active. The choice is remembered; subsequent launches resume normally. A completed Month 42 run stays completed, with its result and the normal New Game option preserved.
 
-Install this inspection build over the existing app using the same bundle identifier; do not uninstall or clear app data. Use the existing iOS build/copy/Xcode workflow. Do not restore gameplay in this temporary build until the diagnostic results have been reviewed.
+Install over the existing iPhone app using the same bundle identifier; do not uninstall or clear app data. Rebuild with `npm run build -- --mode production`, run `npx cap copy ios`, then run the existing app from Xcode. No sign-in, cloud synchronization, or diagnostic screen is required to play.

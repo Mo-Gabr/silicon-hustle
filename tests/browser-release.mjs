@@ -17,10 +17,10 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let available=true;try{await access(chrome);}catch{available=false;}
 test('offline browser: local gameplay parity, read-only Rankings and Founders Gamble',{skip:!available?'Chrome not installed; set CHROME_BIN':false,timeout:120000},async()=>{
  const root=await mkdtemp(join(tmpdir(),'silicon-board-release-browser-'));
- for(const variant of ['diagnostic','main','release','missingurl','missingkey','missingboth','invalidurl']){
-  await build({entryPoints:['src/main.tsx'],bundle:true,format:'esm',outdir:join(root,variant),entryNames:'app',jsx:'automatic',define:{'import.meta.env.VITE_SUPABASE_URL':(variant==='missingurl'||variant==='missingboth')?'undefined':variant==='invalidurl'?JSON.stringify('invalid-url'):JSON.stringify('https://supabase.test'),'import.meta.env.VITE_SUPABASE_ANON_KEY':(variant==='missingkey'||variant==='missingboth')?'undefined':JSON.stringify('sb_publishable_SYNTHETIC_ONLY')},plugins:variant==='main'?[{name:'baseline-main',setup(b){b.onLoad({filter:/\/src\/main\.tsx$/},()=>({contents:execFileSync('git',['show',base+':src/main.tsx'],{encoding:'utf8'}),loader:'tsx'}));}}]:variant==='diagnostic'?[]:[{name:'synthetic-gameplay-regressions',setup(b){b.onLoad({filter:/\/src\/saveDiagnostics\.ts$/},async()=>({contents:(await readFile('src/saveDiagnostics.ts','utf8')).replace('SAVE_DIAGNOSTIC_BUILD=true','SAVE_DIAGNOSTIC_BUILD=false'),loader:'ts'}));}}]});
+ for(const variant of ['main','release','missingurl','missingkey','missingboth','invalidurl']){
+  await build({entryPoints:['src/main.tsx'],bundle:true,format:'esm',outdir:join(root,variant),entryNames:'app',jsx:'automatic',define:{'import.meta.env.VITE_SUPABASE_URL':(variant==='missingurl'||variant==='missingboth')?'undefined':variant==='invalidurl'?JSON.stringify('invalid-url'):JSON.stringify('https://supabase.test'),'import.meta.env.VITE_SUPABASE_ANON_KEY':(variant==='missingkey'||variant==='missingboth')?'undefined':JSON.stringify('sb_publishable_SYNTHETIC_ONLY')},plugins:variant==='main'?[{name:'baseline-main',setup(b){b.onLoad({filter:/\/src\/main\.tsx$/},()=>({contents:execFileSync('git',['show',base+':src/main.tsx'],{encoding:'utf8'}),loader:'tsx'}));}}]:[]});
  }
- const server=http.createServer(async(req,res)=>{const m=req.url.match(/^\/(diagnostic|main|release|missingurl|missingkey|missingboth|invalidurl)\/(app\.(?:js|css))$/);if(m){res.setHeader('Content-Type',m[2].endsWith('js')?'text/javascript':'text/css');res.end(await readFile(join(root,m[1],m[2])));return;}if(/^\/(diagnostic|main|release|missingurl|missingkey|missingboth|invalidurl)\/$/.test(req.url)){const v=req.url.split('/')[1];res.setHeader('Content-Type','text/html');res.end(`<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><div id="root"></div><link rel="stylesheet" href="/${v}/app.css"><script type="module" src="/${v}/app.js"></script>`);return;}res.writeHead(404);res.end();});
+ const server=http.createServer(async(req,res)=>{const m=req.url.match(/^\/(main|release|missingurl|missingkey|missingboth|invalidurl)\/(app\.(?:js|css))$/);if(m){res.setHeader('Content-Type',m[2].endsWith('js')?'text/javascript':'text/css');res.end(await readFile(join(root,m[1],m[2])));return;}if(/^\/(main|release|missingurl|missingkey|missingboth|invalidurl)\/$/.test(req.url)){const v=req.url.split('/')[1];res.setHeader('Content-Type','text/html');res.end(`<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><div id="root"></div><link rel="stylesheet" href="/${v}/app.css"><script type="module" src="/${v}/app.js"></script>`);return;}res.writeHead(404);res.end();});
  await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;
  const profile=join(root,'fresh-profile');
  const child=spawn(chrome,['--headless=new','--disable-gpu','--disable-extensions','--disable-background-networking','--disable-component-update','--disable-sync','--no-first-run','--no-default-browser-check','--no-proxy-server','--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE localhost','--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'],{stdio:'ignore'});
@@ -52,7 +52,7 @@ test('offline browser: local gameplay parity, read-only Rankings and Founders Ga
    await send('Fetch.fulfillRequest',{requestId,responseCode:status,responseHeaders:[{name:'Content-Type',value:'application/json'},{name:'Access-Control-Allow-Origin',value:origin},{name:'Access-Control-Allow-Headers',value:'*'},{name:'Access-Control-Allow-Methods',value:'GET,POST,PATCH,OPTIONS'}],body:Buffer.from(JSON.stringify(body)).toString('base64')},m.sessionId);
   };
   await send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:join(root,'downloads')});
-  async function scenario(variant,{signed=false,empty=false,board=false,error=false,deviceChoice=false,noLocal=false,legacy=false,differentCloud=false,configurationMissing=false,readError=false,publicEntry=false,interactive=null,rankingsCase=null,boardWidth=null,gambleCase=false,localCase=null,profileCase=null}={}){
+  async function scenario(variant,{signed=false,empty=false,board=false,error=false,deviceChoice=false,noLocal=false,legacy=false,differentCloud=false,configurationMissing=false,readError=false,publicEntry=false,interactive=null,rankingsCase=null,boardWidth=null,gambleCase=false,localCase=null,profileCase=null,recoveryChoice=null}={}){
    const {browserContextId}=await send('Target.createBrowserContext');const {targetId}=await send('Target.createTarget',{url:'about:blank',browserContextId});const {sessionId}=await send('Target.attachToTarget',{targetId,flatten:true});
    const state={signed,row:empty?null:{user_id:uid,game_state:(deviceChoice||differentCloud)?{...game(),month:4,cash:4000000}:game(),updated_at:'2026-10-15T00:00:00.123456Z'},posted:null,submits:0,reads:0,saves:[],errors:[],submitError:error,readError};states.set(sessionId,state);
    if(rankingsCase){state.posted={public_id:'00000000-0000-4000-8000-000000000202',display_name:'Synthetic Founder',best_valuation:['published','rename'].includes(rankingsCase)?30000000:1000000,game_version:'0.9.0',position:1,achieved_at:'2026-10-16T00:00:00Z',verification:'unverified'};state.submitError=rankingsCase==='failed';state.manualRetry=rankingsCase==='failed';state.editName=rankingsCase==='rename';}
@@ -65,6 +65,7 @@ test('offline browser: local gameplay parity, read-only Rankings and Founders Ga
    if(interactive==='desktop')await send('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false},sessionId);
    if(interactive==='mobile'||interactive==='small')await send('Emulation.setDeviceMetricsOverride',{width:interactive==='small'?320:390,height:interactive==='small'?568:844,deviceScaleFactor:1,mobile:true},sessionId);
    const entries={'silicon-hustle-welcome-v09':'yes','silicon-hustle-tutorial-seen':'yes','silicon-hustle-v04':JSON.stringify(game())};
+   if(recoveryChoice){const historical={...game(),month:42,cash:253577280,ended:true,gamble:{version:1,decision:'extend',standardResult:{month:30,valuation:100000000,peak:100000000,success:true,ending:'ipo'},enterprise:{reliability:1,purchasedSlots:0,contracts:[],discountThrough:0,focus:'operate',ledger:[]},extensionOutcome:{month:42,valuation:273577280,reason:'completed',unicorn:false,mogabr:false}}};entries['silicon-hustle-v04']=JSON.stringify(historical);entries['silicon-hustle-local-v1']=JSON.stringify({...game(),month:5});entries['silicon-hustle-local-originals-v1']=JSON.stringify([{key:'silicon-hustle-v04',raw:JSON.stringify(historical)}]);}
    if(interactive){const g=game();g.month=2;entries['silicon-hustle-v04']=JSON.stringify(g);}
    if(profileCase==='chosen')entries['silicon-hustle-v04']=JSON.stringify({...game(),profile:{displayName:'Device Atelier'}});
    if(profileCase==='legacy')entries['silicon-hustle-v04']=JSON.stringify({...game(),founder_name:'Legacy Atelier'});
@@ -77,22 +78,43 @@ test('offline browser: local gameplay parity, read-only Rankings and Founders Ga
    await send('Page.addScriptToEvaluateOnNewDocument',{source:`if(!localStorage.getItem('__synthetic_seeded')){for(const [k,v] of Object.entries(${JSON.stringify(entries)}))localStorage.setItem(k,v);localStorage.setItem('__synthetic_seeded','yes');}`},sessionId);
    if(localCase==='quota')await send('Page.addScriptToEvaluateOnNewDocument',{source:`const set=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k==='silicon-hustle-local-v1')throw new DOMException('Synthetic quota','QuotaExceededError');return set.call(this,k,v);};`},sessionId);
    await send('Page.navigate',{url:origin+'/'+variant+'/'},sessionId);
-   if(variant==='diagnostic'){
-    await wait(`document.body.textContent.includes('SAVE INSPECTION BUILD')`);
-    await evaluate(`document.querySelector('.sh-account button').click()`);
-    await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='SAVE DIAGNOSTICS').click()`);
-    await wait(`!!document.querySelector('[aria-label="Save diagnostics"]')`);
+   if(recoveryChoice){
+    await wait(`!!document.querySelector('[aria-label="Choose your game"]')`);
+    assert.equal(await evaluate(`localStorage.getItem('silicon-hustle-local-v1')`),entries['silicon-hustle-local-v1']);
     assert.equal(await evaluate(`!!document.querySelector('.shell')`),false);
-    assert.equal(await evaluate(`localStorage.getItem('silicon-hustle-local-v1')`),null);
-    assert.equal(await evaluate(`localStorage.getItem('silicon-hustle-v04')`),entries['silicon-hustle-v04']??null);
-    const summary=await evaluate(`document.querySelector('pre').textContent`);
-    assert.ok(!summary.includes('access_token'));assert.ok(!summary.includes('prices'));
-    assert.equal(await evaluate(`document.documentElement.scrollWidth>innerWidth`),false);
-    await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='REFRESH READ-ONLY SUMMARY').click()`);
-    assert.equal(await evaluate(`localStorage.getItem('silicon-hustle-local-v1')`),null);
+    const press=async prefix=>{await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent.startsWith(${JSON.stringify(prefix)})).click()`);await sleep(70);};
+    await press(recoveryChoice==='historical'?'MONTH 42':'MONTH 5');
+    await wait(`!!document.querySelector('.shell')`);
+    assert.equal(await evaluate(`!!document.querySelector('[aria-label="Choose your game"]')`),false);
+    assert.equal(await evaluate(`!!document.querySelector('[aria-label="Founder account"]')`),false);
+    assert.equal(await evaluate(`!!document.querySelector('[aria-label="Save diagnostics"]')`),false);
+    const active=JSON.parse(await evaluate(`localStorage.getItem('silicon-hustle-local-v1')`));
+    assert.equal(active.month,recoveryChoice==='historical'?42:5);
+    assert.equal(await evaluate(`localStorage.getItem('silicon-hustle-v04')`),entries['silicon-hustle-v04']);
+    const archives=JSON.parse(await evaluate(`localStorage.getItem('silicon-hustle-local-originals-v1')`));
+    assert.ok(archives.some(e=>e.raw===entries['silicon-hustle-local-v1']));assert.ok(archives.some(e=>e.raw===entries['silicon-hustle-v04']));
+    if(recoveryChoice==='historical'){
+     assert.equal(active.ended,true);assert.equal(await evaluate(`!!document.querySelector('.final-cover')`),false);
+     assert.equal(await evaluate(`!!document.querySelector('.next:not(:disabled)')`),true);
+     await send('Page.reload',{},sessionId);await wait(`!!document.querySelector('.shell')`);
+     assert.equal(await evaluate(`!!document.querySelector('[aria-label="Choose your game"]')`),false);
+     await press('PLAY AGAIN');await wait(`!!document.querySelector('.market')`);
+    }
+    await evaluate(`document.querySelectorAll('.market .asset')[2].click()`);
+    await wait(`!!document.querySelector('.chip-trading-panel')`);
+    await evaluate(`document.querySelector('.chip-trading-panel button[aria-label="Close trading panel"]').click()`);
+    await press('BUY ·');await wait(`JSON.parse(localStorage.getItem('silicon-hustle-local-v1')).positions.h100?.qty===1`);
+    await press('SELL ·');await wait(`JSON.parse(localStorage.getItem('silicon-hustle-local-v1')).positions.h100?.qty===0`);
+    const month=JSON.parse(await evaluate(`localStorage.getItem('silicon-hustle-local-v1')`)).month;
+    await press('NEXT MONTH');await wait(`JSON.parse(localStorage.getItem('silicon-hustle-local-v1')).month===${month+1}`);
+    await press('CONTINUE PLAYING');await press('AI LAB');await wait(`document.body.textContent.includes('AI LAB')`);
+    const saved=await evaluate(`localStorage.getItem('silicon-hustle-local-v1')`);
+    await send('Page.reload',{},sessionId);await wait(`!!document.querySelector('.shell')`);
+    assert.equal(await evaluate(`localStorage.getItem('silicon-hustle-local-v1')`),saved);
+    assert.equal(await evaluate(`!!document.querySelector('[aria-label="Choose your game"], [aria-label="Founder account"], [aria-label="Save diagnostics"]')`),false);
     assert.equal(state.saves.length,0);assert.equal(state.submits,0);
-    console.log('PASS: diagnostic launch/account/refresh preserves snapshots at width '+boardWidth+' noLocal='+noLocal);
-    await send('Target.disposeBrowserContext',{browserContextId});states.delete(sessionId);return;
+    state.disposing=true;await send('Target.disposeBrowserContext',{browserContextId});states.delete(sessionId);
+    console.log('PASS: '+recoveryChoice+' choice, preserved originals, playable buy/sell/month/lab, restart width '+boardWidth);return;
    }
    if(localCase){
     const original=entries['silicon-hustle-v04']??null;
@@ -334,7 +356,7 @@ test('offline browser: local gameplay parity, read-only Rankings and Founders Ga
   }
   for(const boardWidth of [1280,390,320])await scenario('release',{gambleCase:true,boardWidth});
   await scenario('release',{signed:true,empty:true,gambleCase:true,boardWidth:390});
-  for(const width of [320,390]){await scenario('diagnostic',{boardWidth:width});await scenario('diagnostic',{boardWidth:width,noLocal:true});}
+  for(const boardWidth of [320,390])for(const recoveryChoice of ['current','historical'])await scenario('release',{boardWidth,recoveryChoice});
   await send('Browser.close');
  }finally{ws?.close();child.kill('SIGTERM');await new Promise(r=>server.close(r));}
 });
