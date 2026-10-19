@@ -6,6 +6,8 @@ import {Browser} from '@capacitor/browser';
 import {SocialLogin, type GoogleLoginResponseOnline} from '@capgo/capacitor-social-login';
 import './auth.css';
 import {rankingsConfiguration} from './rankingsApi';
+import {readLocal,GAME_KEYS} from './localSaves';
+import {localFounderName} from './gameProfile';
 
 const url=import.meta.env.VITE_SUPABASE_URL as string|undefined;
 const key=import.meta.env.VITE_SUPABASE_ANON_KEY as string|undefined;
@@ -44,6 +46,15 @@ async function completeNativeLogin(link:string){
 }
 
 export default function AuthGate({children}:{children:React.ReactNode}){
+ const [profileName,setProfileName]=useState(()=>localFounderName(readLocal(localStorage).state));
+ useEffect(()=>{
+  const refresh=()=>setProfileName(localFounderName(readLocal(localStorage).state));
+  const storage=(event:StorageEvent)=>{if(event.key===null||GAME_KEYS.includes(event.key))refresh();};
+  window.addEventListener('silicon-hustle-save',refresh);
+  window.addEventListener('silicon-hustle-reload',refresh);
+  window.addEventListener('storage',storage);
+  return ()=>{window.removeEventListener('silicon-hustle-save',refresh);window.removeEventListener('silicon-hustle-reload',refresh);window.removeEventListener('storage',storage);};
+ },[]);
  const [session,setSession]=useState<Session|null>(null);
  const [busy,setBusy]=useState(false);
  const [notice,setNotice]=useState('');
@@ -128,7 +139,7 @@ return () => {
   finally{setBusy(false);}
  }
  return <>
-  <div className="sh-account"><span>ONE DEVICE. ONE GAME.</span><button onClick={()=>{setNotice('');setShowAuth(true);}}>{session?'ACCOUNT':'RANKINGS SIGN IN'}</button></div>
+  <div className="sh-account"><span data-testid="local-founder-name">{profileName}</span><button onClick={()=>{setNotice('');setShowAuth(true);}}>{session?'ACCOUNT':'RANKINGS SIGN IN'}</button></div>
   {children}
   {showAuth&&<div className="sh-gate"><section className="sh-dialog" role="dialog" aria-modal="true" aria-label="Founder account"><button className="sh-close" onClick={()=>setShowAuth(false)} aria-label="Close">✕</button><h2>{session?'YOUR ACCOUNT':'RANKINGS SIGN IN'}</h2>{session?<><p>Signed in as {session.user.email||'founder'}.</p><p>Your game stays on this device. This account is only for optional Rankings.</p><button className="sh-primary" onClick={()=>setShowAuth(false)}>CONTINUE PLAYING</button><button className="sh-link" onClick={async()=>{await supabase?.auth.signOut();setShowAuth(false);}}>SIGN OUT</button></>:<><p>Sign-in is optional. Play and save on this device without an account.</p><button className="sh-google" onClick={signInGoogle} disabled={busy||!supabase}>CONTINUE WITH GOOGLE</button><div className="sh-divider">OR EMAIL A MAGIC LINK</div><form onSubmit={signInEmail}><label htmlFor="sh-email">EMAIL ADDRESS</label><input id="sh-email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required/><button className="sh-primary" disabled={busy||!supabase}>EMAIL ME A SIGN-IN LINK</button></form><button className="sh-link" onClick={()=>setShowAuth(false)}>KEEP PLAYING</button></>}{notice&&<p role="status">{notice}</p>}</section></div>}
  </>;

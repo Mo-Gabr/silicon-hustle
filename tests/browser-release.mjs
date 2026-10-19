@@ -52,7 +52,7 @@ test('offline browser: local gameplay parity, read-only Rankings and Founders Ga
    await send('Fetch.fulfillRequest',{requestId,responseCode:status,responseHeaders:[{name:'Content-Type',value:'application/json'},{name:'Access-Control-Allow-Origin',value:origin},{name:'Access-Control-Allow-Headers',value:'*'},{name:'Access-Control-Allow-Methods',value:'GET,POST,PATCH,OPTIONS'}],body:Buffer.from(JSON.stringify(body)).toString('base64')},m.sessionId);
   };
   await send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:join(root,'downloads')});
-  async function scenario(variant,{signed=false,empty=false,board=false,error=false,deviceChoice=false,noLocal=false,legacy=false,differentCloud=false,configurationMissing=false,readError=false,publicEntry=false,interactive=null,rankingsCase=null,boardWidth=null,gambleCase=false,localCase=null}={}){
+  async function scenario(variant,{signed=false,empty=false,board=false,error=false,deviceChoice=false,noLocal=false,legacy=false,differentCloud=false,configurationMissing=false,readError=false,publicEntry=false,interactive=null,rankingsCase=null,boardWidth=null,gambleCase=false,localCase=null,profileCase=null}={}){
    const {browserContextId}=await send('Target.createBrowserContext');const {targetId}=await send('Target.createTarget',{url:'about:blank',browserContextId});const {sessionId}=await send('Target.attachToTarget',{targetId,flatten:true});
    const state={signed,row:empty?null:{user_id:uid,game_state:(deviceChoice||differentCloud)?{...game(),month:4,cash:4000000}:game(),updated_at:'2026-10-15T00:00:00.123456Z'},posted:null,submits:0,reads:0,saves:[],errors:[],submitError:error,readError};states.set(sessionId,state);
    if(rankingsCase){state.posted={public_id:'00000000-0000-4000-8000-000000000202',display_name:'Synthetic Founder',best_valuation:['published','rename'].includes(rankingsCase)?30000000:1000000,game_version:'0.9.0',position:1,achieved_at:'2026-10-16T00:00:00Z',verification:'unverified'};state.submitError=rankingsCase==='failed';state.manualRetry=rankingsCase==='failed';state.editName=rankingsCase==='rename';}
@@ -66,6 +66,8 @@ test('offline browser: local gameplay parity, read-only Rankings and Founders Ga
    if(interactive==='mobile'||interactive==='small')await send('Emulation.setDeviceMetricsOverride',{width:interactive==='small'?320:390,height:interactive==='small'?568:844,deviceScaleFactor:1,mobile:true},sessionId);
    const entries={'silicon-hustle-welcome-v09':'yes','silicon-hustle-tutorial-seen':'yes','silicon-hustle-v04':JSON.stringify(game())};
    if(interactive){const g=game();g.month=2;entries['silicon-hustle-v04']=JSON.stringify(g);}
+   if(profileCase==='chosen')entries['silicon-hustle-v04']=JSON.stringify({...game(),profile:{displayName:'Device Atelier'}});
+   if(profileCase==='legacy')entries['silicon-hustle-v04']=JSON.stringify({...game(),founder_name:'Legacy Atelier'});
    if(noLocal)delete entries['silicon-hustle-v04'];
    if(localCase==='first'||localCase==='offline')delete entries['silicon-hustle-tutorial-seen'];
    if(localCase==='invalid')entries['silicon-hustle-v04']='UNREADABLE ORIGINAL';
@@ -100,6 +102,24 @@ test('offline browser: local gameplay parity, read-only Rankings and Founders Ga
 
    await wait(`!!document.querySelector('.shell')`);
    if(signed)await wait(`Array.from(document.querySelectorAll('.sh-account button')).some(b=>b.textContent==='ACCOUNT')`);
+   if(profileCase){
+    const expected=profileCase==='chosen'?'Device Atelier':profileCase==='legacy'?'Legacy Atelier':'Founder';
+    await wait(`document.querySelector('[data-testid="local-founder-name"]')?.textContent===${JSON.stringify(expected)}`);
+    assert.ok(!await evaluate(`/ONE DEVICE[.] ONE GAME[.]/i.test(document.body.innerText)`));
+    const original=await evaluate(`JSON.stringify(['silicon-hustle-local-v1','silicon-hustle-v04','compute-empire-v04'].map(k=>localStorage.getItem(k)))`);
+    await send('Page.reload',{},sessionId);await wait(`document.querySelector('[data-testid="local-founder-name"]')?.textContent===${JSON.stringify(expected)}`);
+    assert.equal(await evaluate(`JSON.stringify(['silicon-hustle-local-v1','silicon-hustle-v04','compute-empire-v04'].map(k=>localStorage.getItem(k)))`),original,'Displaying a profile name cannot rewrite saves');
+    const base=await evaluate(`JSON.parse(localStorage.getItem('silicon-hustle-local-v1')||localStorage.getItem('silicon-hustle-v04')||localStorage.getItem('compute-empire-v04'))`);
+    const changed={...base,profile:{displayName:'Updated Device Profile'}};
+    await evaluate(`localStorage.setItem('silicon-hustle-local-v1',${JSON.stringify(JSON.stringify(changed))});window.dispatchEvent(new Event('silicon-hustle-reload'))`);
+    await wait(`document.querySelector('[data-testid="local-founder-name"]')?.textContent==='Updated Device Profile'`);
+    assert.deepEqual(JSON.parse(await evaluate(`localStorage.getItem('silicon-hustle-local-v1')`)),changed);
+    assert.equal(state.saves.length,0);assert.equal(state.submits,0);assert.equal(state.reads,0);assert.deepEqual(state.errors,[]);
+    assert.equal(await evaluate(`document.documentElement.scrollWidth>innerWidth`),false);
+    console.log('PASS: local profile header '+profileCase+' signed='+signed+' legacy='+legacy+' without account lookup or save mutation');
+    state.disposing=true;await send('Target.disposeBrowserContext',{browserContextId});states.delete(sessionId);return;
+   }
+
    if(gambleCase){
     const fixture={...game(),month:29,cash:14540000,labs:8};
     const safeTop=boardWidth===1280?0:59,safeBottom=boardWidth===1280?0:34;
@@ -284,6 +304,7 @@ test('offline browser: local gameplay parity, read-only Rankings and Founders Ga
   for(const options of [{signed:false},{signed:false,legacy:true},{signed:true}]){
    const original=await scenario('main',options),release=await scenario('release',{...options,board:true});assert.deepEqual(release.afterGame,original.afterGame);assert.deepEqual(release.saveTraffic,original.saveTraffic,'Original save request shapes and payloads must match main');console.log('PASS: baseline gameplay/save parity '+JSON.stringify(options));
   }
+  for(const options of [{profileCase:'chosen'},{profileCase:'chosen',signed:true},{profileCase:'legacy',legacy:true},{profileCase:'fallback',signed:true}])await scenario('release',{...options,boardWidth:320});
   for(const localCase of ['first','offline','invalid','future','quota'])await scenario('release',{localCase,noLocal:['first','offline'].includes(localCase),boardWidth:320});
   await scenario('release',{localCase:'first',noLocal:true,signed:true,boardWidth:390});
   await scenario('release',{localCase:'offline',noLocal:true,signed:true,boardWidth:390});

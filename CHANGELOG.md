@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- The upper-left header shows the local game profile’s chosen founder/display name, including legacy name metadata, with “Founder” for unnamed games. It never substitutes an account or Rankings identity and does not change saved data.
+
 ### Removed
 
 - Cloud-save synchronization, cloud/device selection, cloud recovery/account save controls, and the sign-in-oriented launch splash. Existing server data and historical local snapshot keys are retained.
