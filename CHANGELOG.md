@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Removed
+
+- Cloud-save synchronization, cloud/device selection, cloud recovery/account save controls, and the sign-in-oriented launch splash. Existing server data and historical local snapshot keys are retained.
+- Score publishing and founder-name editing from the active local-only client, pending a separately reviewed attribution approach. Anonymous public Rankings and existing published records remain available.
+
+### Added
+
+- One-device local autosave and resume, including Founder’s Gamble decisions, frozen Month 30 results and achievements, with compatible historical snapshot loading.
+- A compact incompatible-game recovery screen, preserved originals before explicit fresh starts, and storage/stale-window safeguards that keep the previous game on failure.
+
 This initial baseline summarizes major features already completed. It does not assign release dates or version numbers.
 
 ### Added

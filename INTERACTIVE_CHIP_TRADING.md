@@ -4,7 +4,7 @@ Market cards and portfolio chip names open a desktop dialog or mobile bottom she
 
 The panel separates monthly market performance from the player's position. Average purchase cost includes buy fees; unrealized and estimated realized gains include the selling fee. Holdings market value is before selling fees. Missing or unreliable price history or cost basis displays **Unavailable**.
 
-NEXT MONTH adds an optional `previousMarket` snapshot containing the previous prices and the month they apply to. Existing saves remain readable without this field. The first month has no historical baseline. Missing or stale snapshots remain unavailable until the next advance; reset clears the snapshot. Market calculations and the existing save, authentication, synchronization, conflict, and recovery implementations are unchanged. No database migration is required.
+NEXT MONTH adds an optional `previousMarket` snapshot containing the previous prices and the month they apply to. Existing saves remain readable without this field. The first month has no historical baseline. Missing or stale snapshots remain unavailable until the next advance; reset clears the snapshot. Market calculations and transactions are unchanged. Persistence is now local-only as described in README; accounts are optional for Rankings and do not change the game. No database migration is required.
 
 ## Verification
 

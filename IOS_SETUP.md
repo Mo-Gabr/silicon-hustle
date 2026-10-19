@@ -34,8 +34,8 @@ The existing browser sign-in uses `window.location.origin` for redirects. In a n
 ## Release checklist
 
 - Confirm local save survives app termination and update.
-- Confirm offline gameplay and online sync after reconnect.
+- Confirm offline gameplay; reconnect must not download, replace, or synchronize the local game. Public Rankings may refresh separately.
 - Verify safe-area insets, keyboard, small-screen layout, and splash artwork.
 - Add native app icons and launch screen assets.
-- Test save conflicts between iOS and web.
+- Confirm iOS and web retain independent local games, including Founder’s Gamble achievements. Test local recovery copy export on a physical iPhone.
 - Review privacy disclosures and App Store guidelines for account creation/deletion and social sign-in.

@@ -2,6 +2,8 @@
 
 A fictional AI hardware trading and startup simulator. Start with **$5M cash** and a **$25M company valuation**, then work toward a **$100M valuation within 30 months**.
 
+**One device. One game.** Progress saves and resumes locally. Accounts are optional; gameplay never waits for an online service.
+
 [Play on the web](https://silicon-hustle.vercel.app)
 
 ## Gameplay
@@ -19,7 +21,7 @@ Hardware prices, companies' offers, financial outcomes, and startup valuations a
 
 The original 30-month economy, fees, hardware trades, lab upgrades, and crises remain unchanged. A newly completed Month 30 company worth at least **$100M** gets a choice: **Take the Money & Run**, or **Double Down** for one optional chapter ending at **Month 42**. Previously completed legacy saves stay completed.
 
-Your **Month 30 victory and standard Rankings peak are frozen before the choice**. Extended gains, early exits, losses, and bankruptcy are recorded separately and never replace that standard result. Publishing remains manual and requires the same account and matching-cloud-save checks. There is no separate public extended leaderboard.
+Your **Month 30 victory and standard Rankings peak are frozen before the choice**. Extended gains, early exits, losses, and bankruptcy are recorded separately and never replace that standard result. Score publishing is paused in this local-only release; the frozen standard result is still preserved on the device. There is no separate public extended leaderboard.
 
 In **Build the Enterprise**, choose a monthly focus: land pilots, win enterprise customers, pursue strategic partnerships, expand delivery capacity, improve reliability, or consolidate. Choices have personality—and consequences: customer bids can fail, idle capacity costs money, and service incidents hurt billing and valuation. Compact action rows show each investment’s cost and effect. The enterprise summary shows recurring revenue, capacity, and reliability; cash and valuation remain in the existing financial summary. Expand **Details** for operating costs, incident risk, valuation multiples, and cash-flow projections. The Month 30 choice and enterprise screens respect mobile safe areas and support larger text. Selecting a focus is planning; **NEXT MONTH** pays and settles it once. Unaffordable plans block advancement until changed or funded. Existing lab income and trading continue under their original rules.
 
@@ -28,7 +30,7 @@ In **Build the Enterprise**, choose a monthly focus: land pilots, win enterprise
 - **Early exit:** confirm an exit to record the extended result and stop further months and revenue. Canceling does not change the game.
 - **Dynamic losing endings:** four satirical stories reflect the final valuation, with timing adapted to the ending month. Bankruptcy and fraud retain priority.
 
-New decisions, contracts, monthly settlements, achievements, and both outcomes travel in the existing local/cloud JSON save. No database migration is required. A normal reload does not replay growth revenue, investment, or decisions. This is save-level persistence, not irreversible server enforcement: deliberately restoring an older snapshot can rewind the chapter, and an old app bundle does not understand the extension. Use updated clients on all devices and resolve save conflicts carefully. Existing native authentication and cross-device validation limitations still apply.
+Decisions, contracts, monthly settlements, achievements, and both outcomes stay in the local JSON game save. No database migration is required. A reload resumes that device’s game without replaying revenue, investments, or decisions. Restoring an older snapshot can rewind progress; an old app bundle may not understand the extension. Each browser profile and installed iOS app has its own independent game.
 
 The same React screens and TypeScript rules power web and Capacitor iOS. Enterprise balance parameters live in `src/foundersGamble.ts` under `ENTERPRISE_BALANCE`. Contract and incident outcomes are deterministic per saved seed/month/channel; restoring an older snapshot can still allow decisions with foreknowledge. Financial multiples are fictional game balance, not investment guidance.
 
@@ -44,34 +46,36 @@ On mobile, Market appears before the collapsed My Portfolio section. Expand the 
 
 ## Rankings
 
-Rankings includes a global leaderboard, your personal best and published position, editable public founder names, and the separate **MOGABR developer benchmark of $74,610,431,012.27**.
+Rankings remains an optional online feature, requested when you open Rankings: browse public scores without signing in, view your standard-game personal best, and compare against the separate **MOGABR developer benchmark of $74,610,431,012.27**. Optional sign-in can identify your existing published record.
 
-Publishing is manual. **Publish Saved Peak** appears when an eligible, unpublished peak is available. Publishing checks the signed-in account and ownership of the matching cloud save; unresolved save choices or pending synchronization can block it. Contextual guidance and manual retry controls remain available. New games do not lower an existing published best.
+**Score publishing and founder-name editing are paused in this release.** Their previous ownership check required a matching server save. Removing synchronization does not silently weaken that check or replace it with unverified account attribution. Existing published records are unchanged; a separate local-only attribution design is needed before publication resumes.
 
-**Early Access · Rankings are based on player-submitted scores.**
+**Early Access · Rankings are based on player-submitted scores.** Scores are not independently verified. The benchmark is a developer reference, not a player submission.
 
-Scores are not independently verified. The benchmark is a developer reference, not a player submission.
+## One device, one game
 
-## Accounts and saves
+Play without an account, Supabase configuration, or connectivity. A new game is saved immediately; subsequent actions save automatically, and launching the app resumes the local game. There is no save-source picker, automatic import, or synchronization between devices. Signing in or out does not change the game.
 
-Guest play requires no account or Supabase project. Progress is saved locally on the current browser or device; clearing that storage removes the local copy.
+Supported historical snapshots in `silicon-hustle-v04` and `compute-empire-v04` are read without rewriting them on launch. New progress is stored in `silicon-hustle-local-v1`; historical keys are never deleted or overwritten. When both exist, the local-only game is active. Presentation defaults can be supplied in memory, but money, completion state, and achievements are never fabricated. Returning to an older client may show the older historical snapshot rather than recent local-only progress.
 
-With Supabase configured, optional Google sign-in or passwordless email sign-in enables cloud saves. When both local and cloud progress exist, the player chooses which to keep. Save conflicts also require a choice rather than being presented as a successful synchronization. Check Account for save status and resolve pending choices before publishing a score.
+An incompatible game blocks play instead of silently resetting. **Save a Copy** and **Try Again** offer a simple recovery path. An explicit fresh start first preserves original snapshots locally; failure to preserve them blocks the replacement. Explicit New Game resets also retain the previous snapshot. No automatic recovery imports are performed. Storage failures retain the previous game and show an error. Recovery copies consume device storage and are not automatically pruned.
+
+Clearing browser/app storage or deleting the installed app can remove the game and recovery copies. Use one active window, keep exported copies private, and do not rely on an account as a backup. Existing remote data is neither downloaded, changed, nor deleted by this client. Native export and persistence across installation/update scenarios still need physical-iPhone validation.
 
 | Feature | Supabase requirements |
 | --- | --- |
-| Guest gameplay and local saves | None |
-| Sign-in and cloud saves | Project URL, public key, configured authentication providers/redirects, and the protected `game_saves` table |
+| Gameplay, local saves, Founder’s Gamble and achievements | None |
 | Public Rankings reads | Project URL, public key, and the deployed Rankings read RPC; no sign-in required |
-| Rankings publication and name changes | Configured Rankings submission RPC, authentication, and an eligible game matching the account's cloud save |
+| Viewing your existing published record | Optional configured Google/email authentication |
+| Score publishing and founder-name editing | Paused; no submission requests are sent |
 
-See [account and cloud-save setup](AUTH_SETUP.md). Database setup is separate from installing or building the client; do not reapply migrations to an already configured project. The existing Rankings migration is retained in `supabase/migrations/202610150002_billionaire_board.sql`.
+See [optional Rankings authentication](AUTH_SETUP.md). Existing SQL files are historical setup assets, not instructions to change production for this release. No schema change or migration is needed.
 
 ## Platforms and technology
 
 - **Web:** React, TypeScript, and Vite, hosted on Vercel.
 - **iOS:** Capacitor packages the same React interface and trading handlers in the native application. The app has been successfully installed and played on a physical iPhone through Xcode.
-- **Backend:** Supabase authentication, PostgreSQL cloud saves, and Rankings RPCs.
+- **Backend:** Optional Supabase authentication and public Rankings reads.
 
 The package version is **0.9.0**. There is no App Store or TestFlight release.
 
@@ -145,6 +149,6 @@ See the [iOS validation checklist](IOS_SETUP.md#release-checklist) and [trading 
 ## Current limitations
 
 - Rankings uses player-submitted scores, not independently verified results or an anti-cheat system.
-- Native authentication and cross-device cloud-save flows still need full validation. Successful physical-iPhone gameplay does not establish those flows as fully validated; save conflicts must be resolved deliberately.
+- Games do not transfer between devices. Optional native Rankings sign-in, recovery export and local persistence across app updates/reinstallation still need physical-device validation.
 - Older saves without a reliable previous-month price display **Unavailable** until a subsequent month transition provides a baseline.
 - The iOS app is a development build run through Xcode, with no App Store or TestFlight release.

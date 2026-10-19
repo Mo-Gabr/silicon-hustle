@@ -17,9 +17,9 @@ test('genuine missing RPC/schema uses a distinct service-unavailable message',()
 test('permission, network and validation errors are distinct and never echo raw backend data',()=>{for(const code of ['42501','PGRST301','PGRST302','PGRST303','22023','P0001',undefined]){const e=rankingsFailure({code,message:'SYNTHETIC_PRIVATE_BACKEND_DETAIL'});assert.equal(e.status,'error');assert.ok(!e.error.includes('SYNTHETIC_PRIVATE_BACKEND_DETAIL'));assert.ok(!e.error.includes('not enabled'));}});
 test('web and Capacitor share Rankings naming while RPC identifiers remain unchanged',()=>{
  const board=readFileSync('src/BillionaireBoard.tsx','utf8'),main=readFileSync('src/main.tsx','utf8'),core=readFileSync('src/leaderboardCore.ts','utf8');
- assert.match(main,/>RANKINGS<\/button>/);assert.match(board,/<h2 id="board-title">RANKINGS<\/h2>/);assert.match(board,/Refresh Rankings/);assert.match(board,/JOIN RANKINGS/);assert.match(board,/No Rankings entries yet/);
+ assert.match(main,/>RANKINGS<\/button>/);assert.match(board,/<h2 id="board-title">RANKINGS<\/h2>/);assert.match(board,/Refresh Rankings/);assert.match(board,/Score publishing is paused/);assert.match(board,/No Rankings entries yet/);
  for(const text of [board,main,core])assert.ok(!/THE BILLIONAIRE|BILLIONAIRE BOARD|JOIN BOARD|Refresh leaderboard|Global scores are not enabled/.test(text));
- assert.match(board,/rpc\('get_billionaire_board'/);assert.match(board,/rpc\('submit_billionaire_score'/);assert.match(readFileSync('capacitor.config.ts','utf8'),/webDir:'dist'/);
+ assert.match(board,/rpc\('get_billionaire_board'/);assert.ok(!board.includes("rpc('submit_billionaire_score'"));assert.match(readFileSync('capacitor.config.ts','utf8'),/webDir:'dist'/);
 });
 
 test('the configuration guard does not reject a configured client or alter the RPC contract',()=>{

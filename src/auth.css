@@ -10,3 +10,7 @@
 @media (max-width: 600px) {
   .sh-dialog input { font-size: 16px; }
 }
+
+/* Exceptional local recovery only; no save dashboard or launch selection. */
+.local-game-recovery{box-sizing:border-box;max-height:calc(100dvh - 36px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));overflow:auto;overflow-wrap:anywhere}
+.local-game-recovery h2{font-size:22px}.local-game-recovery button{min-height:44px}
