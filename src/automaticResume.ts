@@ -17,14 +17,28 @@ type History={version:1;account:string;base:CloudSave|null;head:string|null;pend
 const assets=['l40s','a100','h100','h200','b200','mi300','mi325','gaudi'];
 const object=(x:unknown):x is Record<string,unknown>=>!!x&&typeof x==='object'&&!Array.isArray(x);
 const finite=(x:unknown):x is number=>typeof x==='number'&&Number.isFinite(x);
-export function validSave(x:unknown):boolean{
- if(!object(x)||!Number.isInteger(x.month)||Number(x.month)<1||Number(x.month)>30||!finite(x.cash)||!finite(x.seed)||!Number.isInteger(x.labs)||Number(x.labs)<0||Number(x.labs)>8||typeof x.ended!=='boolean'||!object(x.prices)||!object(x.positions)||(!Array.isArray(x.history)||!x.history.every(h=>typeof h==='string'))||typeof x.headline!=='string'||typeof x.ending!=='string'||x.gamble!==undefined)return false;
- if(!assets.every(key=>finite((x.prices as Record<string,unknown>)[key])&&Number((x.prices as Record<string,unknown>)[key])>0))return false;
- if(!Object.entries(x.positions).every(([key,p])=>assets.includes(key)&&object(p)&&Number.isInteger(p.qty)&&Number(p.qty)>=0&&(p.cost===undefined||finite(p.cost)&&p.cost>=0)))return false;
- if(x.reports!==undefined&&(!Array.isArray(x.reports)||!x.reports.every(r=>object(r)&&Number.isInteger(r.month)&&Number(r.month)>=1&&Number(r.month)<=30&&finite(r.valuation))))return false;
- return true;
+export type SaveInspection={state:Record<string,unknown>|null;issue:string;reason:string};
+/** Financial/progression fields are required; missing presentation fields have safe defaults.
+ * Inspect without mutating the stored snapshot or discarding unknown metadata. */
+export function inspectSave(x:unknown):SaveInspection{
+ const fail=(issue:string,reason:string):SaveInspection=>({state:null,issue,reason});
+ if(!object(x))return fail('format','This save uses a format this version cannot open.');
+ if(x.gamble!=null||finite(x.month)&&x.month>30)return fail('game-version','This save needs the matching game version, including any extended run.');
+ for(const key of ['month','cash','seed','labs'])if(!finite(x[key]))return fail(key,`This save needs a compatible ${key} field. The original is kept.`);
+ if(!Number.isInteger(x.month)||Number(x.month)<1||Number(x.month)>30)return fail('month','This save has an unsupported month. The original is kept.');
+ if(!Number.isInteger(x.labs)||Number(x.labs)<0||Number(x.labs)>8)return fail('labs','This save has an unsupported lab level. The original is kept.');
+ if(typeof x.ended!=='boolean')return fail('ended','This save’s completion status cannot be established safely.');
+ if(!object(x.prices)||!assets.every(key=>finite((x.prices as Record<string,unknown>)[key])&&Number((x.prices as Record<string,unknown>)[key])>0))return fail('prices','This save’s hardware prices cannot be read safely.');
+ if(!object(x.positions)||!Object.entries(x.positions).every(([key,p])=>assets.includes(key)&&object(p)&&Number.isInteger(p.qty)&&Number(p.qty)>=0&&(p.cost===undefined||finite(p.cost)&&p.cost>=0)))return fail('positions','This save’s holdings cannot be read safely.');
+ if(x.history!=null&&(!Array.isArray(x.history)||!x.history.every(h=>typeof h==='string')))return fail('history','This save’s history uses an unsupported format.');
+ for(const key of ['headline','ending'])if(x[key]!=null&&typeof x[key]!=='string')return fail(key,`This save’s ${key} uses an unsupported format.`);
+ if(x.reports!=null&&(!Array.isArray(x.reports)||!x.reports.every(r=>object(r)&&Number.isInteger(r.month)&&Number(r.month)>=1&&Number(r.month)<=30&&finite(r.valuation))))return fail('reports','This save’s reports use an unsupported format.');
+ return {state:{...x,history:x.history??[],headline:x.headline??'',ending:x.ending??'',...(x.reports===null?{reports:[]}: {})},issue:'',reason:''};
 }
+export const validSave=(x:unknown)=>inspectSave(x).state!==null;
+/** Equality, cloud guards and backups always use original, unnormalized data. */
 export function parseSave(raw:string|null):unknown|null{try{const x=raw===null?null:JSON.parse(raw);return validSave(x)?x:null;}catch{return null;}}
+export function saveFromRaw(raw:string|null):SaveInspection{try{return inspectSave(raw===null?null:JSON.parse(raw));}catch{return {state:null,issue:'json',reason:'This device save cannot be decoded. Its original data is kept.'};}}
 function ordered(x:unknown):unknown{return Array.isArray(x)?x.map(ordered):object(x)?Object.fromEntries(Object.keys(x).sort().map(k=>[k,ordered(x[k])])):x;}
 export const sameSave=(a:unknown,b:unknown)=>JSON.stringify(ordered(a))===JSON.stringify(ordered(b));
 const sameRaw=(a:string|null,b:string|null)=>{try{return a!==null&&b!==null&&sameSave(JSON.parse(a),JSON.parse(b));}catch{return false;}};
@@ -41,6 +55,7 @@ export function persistDevice(raw:string){
    const copies=JSON.parse(localStorage.getItem(DEVICE_RECOVERY_KEY)||'[]') as string[];
    if(!Array.isArray(copies)||!copies.every(x=>typeof x==='string'))throw Error('recovery');
    if(!copies.includes(previous)){copies.push(previous);localStorage.setItem(DEVICE_RECOVERY_KEY,JSON.stringify(copies));}
+   window.dispatchEvent(new CustomEvent('silicon-hustle-save-error',{detail:'format'}));return false;
   }
   localStorage.setItem(DEVICE_KEY,raw);return true;
  }catch{window.dispatchEvent(new Event('silicon-hustle-save-error'));return false;}
@@ -78,7 +93,7 @@ export class ResumeCoordinator{
  noteDeviceChange(newRun=false){
   if(this.stopped)return;
   try{const raw=this.raw(),h=this.history();const known=this.binding(h)&&h.head!==null&&raw!==null&&continuous(h.head,raw)&&!newRun&&!h.divergent;
-   if(!known)this.archive(h,h.head,raw);h.pending=known;h.divergent=!known;h.head=raw;this.save(h);if(known)this.bind(h);
+   if(!known)this.archive(h,h.head,raw);h.pending=known;h.divergent=!known;h.head=raw;this.save(h);if(known){this.bind(h);this.emit({status:'DEVICE CHANGES PENDING',notice:''});}
    if(this.busy)this.rerun=true;
   }catch{this.storageFailure();}
  }
@@ -91,7 +106,7 @@ export class ResumeCoordinator{
    const raw=this.raw(),local=parseSave(raw),cloud=row&&validSave(row.game_state)?row.game_state:null;
    this.emit({device:raw,cloud:row,checking:false,notice:''});
    if(local&&cloud&&sameSave(local,cloud)){this.acknowledge(row!,raw!);return;}
-   if(!local&&cloud){let unsupported=false;try{const value=JSON.parse(raw||'null');unsupported=object(value)&&(Number(value.month)>30||value.gamble!==undefined);}catch{}if(unsupported){this.emit({status:'SAVE REVIEW NEEDED',choice:true,notice:'This device save needs a different game version. Export it before choosing another save.'});return;}this.loadCloud(row!,raw);return;}
+   if(!local&&cloud){if(raw!==null){this.recordConflict(raw,row);this.emit({status:'SAVE REVIEW NEEDED',choice:!this.dismissed});return;}this.loadCloud(row!,raw);return;}
    if(local&&!row){
     const h=this.history();
     if(h.base===null&&h.pending&&!h.divergent&&this.binding(h)&&sameRaw(h.head,raw)){await this.upload(null,raw!);return;}
@@ -153,7 +168,8 @@ export class ResumeCoordinator{
     if(!row||!validSave(row.game_state)){this.emit({choice:true,notice:'This cloud save cannot be loaded by this version. Its original data is preserved.'});return;}
     this.loadCloud(row,raw);
    }else{
-    if(!parseSave(raw)){this.emit({choice:true,notice:'This device save cannot be loaded by this version. Export it for recovery.'});return;}
+    if(!parseSave(raw)){this.emit({choice:true,notice:'This device save cannot be opened here. Open Saved Games for recovery.'});return;}
+    if(row&&!validSave(row.game_state)){this.emit({choice:true,notice:'The cloud save needs review in its matching version. It has not been replaced.'});return;}
     h.base=row;h.head=raw;h.pending=true;h.divergent=false;this.save(h);this.bind(h);await this.upload(row,raw!);
    }
   }catch{if(!this.stopped)this.failure();}

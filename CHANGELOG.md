@@ -18,8 +18,14 @@ This initial baseline summarizes major features already completed. It does not a
 
 ### Changed
 
-- Save selection is exceptional and titled PICK UP WHERE YOU LEFT OFF. Offline/read failures pause sync without treating the cloud as empty; device-only games require explicit consent before import into an unbound account.
+- Save selection is exceptional and titled CHOOSE YOUR SAVE, with compact source/month/valuation choices. Recovery export and details live in Account → Saved Games. Offline/read failures pause sync without treating the cloud as empty; device-only games require explicit consent before import into an unbound account.
 - Device save failures keep the previous saved/game state and show a recovery notice instead of reporting a successful action.
 
 - Mobile gameplay puts Market first, with compact financial summaries, an expandable portfolio, and expandable Market Wire.
 - Rankings uses a compact founder-name section, contextual publishing controls, and one Early Access disclosure beneath the leaderboard instead of repeated verification and version badges.
+
+### Fixed
+
+- Save compatibility now accepts absent legacy presentation fields and nullable optional reports without changing original stored snapshots; game loading applies display defaults in memory and preserves unknown metadata.
+- Unsupported game versions and unreadable fields receive specific explanations instead of being labelled damaged. Invalid or missing saves are not shown as selectable options, and unreadable snapshots are protected from automatic replacement.
+- Local edits immediately show pending synchronization rather than briefly retaining a synced label.

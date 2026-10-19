@@ -12,3 +12,11 @@
 .sh-save-picker button { min-height: 44px; white-space: normal; }
 .sh-save-picker .sh-primary, .sh-save-picker .sh-google { margin-top: 10px; }
 .sh-save-picker .sh-link { padding: 12px 4px; }
+
+.sh-save-picker .sh-save-option { text-align: left; padding: 12px; }
+.sh-save-option strong { display: block; font-size: 13px; }
+.sh-save-option span { display: block; margin-top: 5px; font-size: 12px; line-height: 1.5; color: #b5d1c2; font-weight: 500; }
+.sh-save-recovery { margin-top: 12px; font-size: 12px; }
+.sh-save-recovery summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+.sh-save-issue { border-left: 2px solid #88a48e; padding-left: 10px; }
+.sh-save-picker :focus-visible { outline: 2px solid #c9f89b; outline-offset: 3px; }

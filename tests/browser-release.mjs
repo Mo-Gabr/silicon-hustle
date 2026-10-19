@@ -59,9 +59,13 @@ test('offline browser: original gameplay parity, safe save resume and isolated R
    }catch{state.errors.push('unexpected intercepted request');status=500;body={message:'Synthetic route rejected'};}
    await send('Fetch.fulfillRequest',{requestId,responseCode:status,responseHeaders:[{name:'Content-Type',value:'application/json'},{name:'Access-Control-Allow-Origin',value:origin},{name:'Access-Control-Allow-Headers',value:'*'},{name:'Access-Control-Allow-Methods',value:'GET,POST,PATCH,OPTIONS'}],body:Buffer.from(JSON.stringify(body)).toString('base64')},m.sessionId);
   };
-  async function scenario(variant,{signed=false,empty=false,board=false,error=false,deviceChoice=false,noLocal=false,legacy=false,differentCloud=false,configurationMissing=false,readError=false,publicEntry=false,interactive=null,rankingsCase=null,boardWidth=null,resumeCase=false}={}){
+  async function scenario(variant,{signed=false,empty=false,board=false,error=false,deviceChoice=false,noLocal=false,legacy=false,differentCloud=false,configurationMissing=false,readError=false,publicEntry=false,interactive=null,rankingsCase=null,boardWidth=null,resumeCase=false,saveCase=null}={}){
    const {browserContextId}=await send('Target.createBrowserContext');const {targetId}=await send('Target.createTarget',{url:'about:blank',browserContextId});const {sessionId}=await send('Target.attachToTarget',{targetId,flatten:true});
    const state={signed,row:empty?null:{user_id:uid,game_state:(deviceChoice||differentCloud)?{...game(),month:4,cash:4000000}:game(),updated_at:'2026-10-15T00:00:00.123456Z'},posted:null,submits:0,reads:0,saves:[],errors:[],submitError:error,readError};states.set(sessionId,state);
+   if(saveCase==='offlineStartup')state.cloudOffline=true;
+   if(saveCase==='legacyCloud'||saveCase==='legacyIdentical'){delete state.row.game_state.headline;delete state.row.game_state.history;delete state.row.game_state.ending;state.row.game_state.reports=null;state.row.game_state.gamble=null;state.row.game_state.achievements=['synthetic-preserved'];}
+   if(saveCase==='invalidCloud')state.row.game_state.cash='unreadable';
+   if(saveCase==='futureCloud'){state.row.game_state.month=35;state.row.game_state.gamble={version:1,decision:'extend',unicornMonth:34};}
    if(rankingsCase){state.posted={public_id:'00000000-0000-4000-8000-000000000202',display_name:'Synthetic Founder',best_valuation:['published','rename'].includes(rankingsCase)?30000000:1000000,game_version:'0.9.0',position:1,achieved_at:'2026-10-16T00:00:00Z',verification:'unverified'};state.submitError=rankingsCase==='failed';state.manualRetry=rankingsCase==='failed';state.editName=rankingsCase==='rename';}
    if(publicEntry)state.posted={public_id:'00000000-0000-4000-8000-000000000303',display_name:'Synthetic Public Founder',best_valuation:1000,game_version:'0.9.0',position:1,achieved_at:'2026-10-16T00:00:00Z',verification:'unverified'};
    const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true},sessionId);if(r.exceptionDetails)throw Error('Browser assertion expression failed');return r.result.value;};
@@ -72,17 +76,49 @@ test('offline browser: original gameplay parity, safe save resume and isolated R
    if(interactive==='mobile'||interactive==='small')await send('Emulation.setDeviceMetricsOverride',{width:interactive==='small'?320:390,height:interactive==='small'?568:844,deviceScaleFactor:1,mobile:true},sessionId);
    const entries={'silicon-hustle-welcome-v09':'yes','silicon-hustle-tutorial-seen':'yes','silicon-hustle-v04':JSON.stringify(game())};
    if(interactive){const g=game();g.month=2;entries['silicon-hustle-v04']=JSON.stringify(g);}
+   if(saveCase==='legacyIdentical')entries['silicon-hustle-v04']=JSON.stringify(state.row.game_state);
    if(noLocal)delete entries['silicon-hustle-v04'];
    if(legacy){entries['compute-empire-v04']=entries['silicon-hustle-v04'];delete entries['silicon-hustle-v04'];}
    if(signed){const payload=Buffer.from(JSON.stringify({sub:uid,role:'authenticated',exp:Math.floor(Date.now()/1000)+3600})).toString('base64url');entries['sb-supabase-auth-token']=JSON.stringify({access_token:'eyJhbGciOiJIUzI1NiJ9.'+payload+'.SYNTHETIC',refresh_token:'SYNTHETIC_ONLY',expires_at:Math.floor(Date.now()/1000)+3600,expires_in:3600,token_type:'bearer',user});}
    await send('Page.addScriptToEvaluateOnNewDocument',{source:`if(!localStorage.getItem('__synthetic_seeded')){for(const [k,v] of Object.entries(${JSON.stringify(entries)}))localStorage.setItem(k,v);localStorage.setItem('__synthetic_seeded','yes');}`},sessionId);
    await send('Page.navigate',{url:origin+'/'+variant+'/'},sessionId);
    await wait(`!!document.querySelector('.shell')`);
-   if(signed&&!empty&&!noLocal&&(deviceChoice||differentCloud)){await wait(`!!document.querySelector('[aria-label="Choose your game save"]')`);await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent===${JSON.stringify(deviceChoice?"KEEP THIS DEVICE'S SAVE":"USE CLOUD SAVE")}).click()`);await wait(`!document.querySelector('[aria-label="Choose your game save"]')`);}
+   if(saveCase){
+    const writes=()=>state.saves.filter(request=>request.method!=='GET').length;
+    if(saveCase==='legacyCloud'||saveCase==='legacyIdentical'){
+     await wait(`document.querySelector('.sh-account [role="status"]')?.textContent.includes('SYNCED')`);
+     assert.equal(await evaluate(`!!document.querySelector('.sh-save-picker')`),false);assert.deepEqual(JSON.parse(await evaluate(`localStorage.getItem('silicon-hustle-v04')`)),state.row.game_state);assert.equal(writes(),0);
+     assert.ok(await evaluate(`document.querySelector('.shell').textContent.includes('$5.00M')`),'Legacy save renders real cash');
+     await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent.startsWith('BUY ·')).click()`);await wait(`JSON.parse(localStorage.getItem('silicon-hustle-v04')).positions.h100?.qty===1`);await wait(`document.querySelector('.sh-account [role="status"]')?.textContent.includes('SYNCED')`);
+     const current=JSON.parse(await evaluate(`localStorage.getItem('silicon-hustle-v04')`));assert.deepEqual(current.achievements,['synthetic-preserved']);assert.equal(current.positions.h100.cost,34340);assert.equal(current.cash,5000000-34340);assert.equal(writes(),1);
+    }else{
+     if(saveCase==='offlineStartup'){
+      await wait(`document.querySelector('.sh-account [role="status"]')?.textContent.includes('PAUSED')`);assert.equal(await evaluate(`!!document.querySelector('.sh-save-picker')`),false);
+      await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='ACCOUNT').click()`);await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='SAVED GAMES').click()`);await wait(`document.querySelector('.sh-save-picker')?.textContent.includes('Cloud unavailable')`);
+      assert.ok(!await evaluate(`document.querySelector('.sh-save-picker').textContent.includes('No cloud save found')`));
+     }else{
+      await wait(`!!document.querySelector('.sh-save-picker')&&!document.querySelector('.sh-save-picker').textContent.includes('Checking saves')`);
+      assert.equal(await evaluate(`document.querySelector('.sh-save-picker h2').textContent`),'SAVE NEEDS REVIEW');
+      assert.equal(await evaluate(`document.querySelectorAll('[data-save-source]').length`),0);assert.equal(await evaluate(`localStorage.getItem('silicon-hustle-v04')`),null);
+      const copy=await evaluate(`document.querySelector('.sh-save-picker').textContent`);assert.ok(!copy.includes('damaged'));assert.ok(!copy.includes('We found two different games'));assert.match(copy,saveCase==='futureCloud'?/matching game version/:/cash field/);
+      assert.equal(await evaluate(`!!document.querySelector('.sh-save-picker details')`),false);await evaluate(`Array.from(document.querySelectorAll('.sh-save-picker button')).find(b=>b.textContent==='OPEN SAVED GAMES').click()`);
+     }
+     assert.equal(await evaluate(`document.querySelector('.sh-save-picker h2').textContent`),'SAVED GAMES');
+     await evaluate(`document.querySelector('.sh-save-picker details').open=true`);
+     assert.ok(await evaluate(`document.querySelector('.sh-save-picker').textContent.includes('EXPORT RECOVERY COPIES')`));assert.equal(await evaluate(`document.querySelectorAll('[data-save-source]').length`),0);
+     await evaluate(`document.querySelectorAll('.sh-save-picker p,.sh-save-picker button,.sh-save-picker summary').forEach(e=>e.style.fontSize='20px')`);
+     const geometry=await evaluate(`(()=>{const d=document.querySelector('.sh-save-picker'),r=d.getBoundingClientRect();d.scrollTop=d.scrollHeight;return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:innerWidth,height:innerHeight,clipped:d.scrollWidth>d.clientWidth};})()`);assert.ok(geometry.left>=0&&geometry.right<=geometry.width&&geometry.top>=0&&geometry.bottom<=geometry.height&&!geometry.clipped);
+     const image=await send('Page.captureScreenshot',{format:'png'},sessionId);await writeFile(join(root,'saved-games-'+saveCase+'-'+boardWidth+'.png'),Buffer.from(image.data,'base64'));
+     assert.equal(writes(),0);
+    }
+    assert.equal(state.submits,0);assert.deepEqual(state.errors,[]);console.log('PASS: save compatibility/recovery '+saveCase+' '+boardWidth+'; no automatic cloud rewrite');
+    state.disposing=true;await send('Target.disposeBrowserContext',{browserContextId});states.delete(sessionId);return {reads:state.reads};
+   }
+   if(signed&&!empty&&!noLocal&&(deviceChoice||differentCloud)){await wait(`!!document.querySelector('[aria-label="Choose your game save"]')`);assert.equal(await evaluate(`document.querySelector('.sh-save-picker h2').textContent`),'CHOOSE YOUR SAVE');assert.equal(await evaluate(`document.querySelectorAll('[data-save-source]').length`),2);assert.equal(await evaluate(`!!document.querySelector('.sh-save-picker details')`),false);if(variant==='release'){assert.ok(await evaluate(`document.querySelector('[data-save-source="cloud"]').textContent.includes('Valuation $24,000,000')`));assert.ok(await evaluate(`document.querySelector('[data-save-source="device"]').textContent.includes('Valuation $25,000,000')`));}await evaluate(`document.querySelector('[data-save-source="${deviceChoice?'device':'cloud'}"]').click()`);await wait(`!document.querySelector('[aria-label="Choose your game save"]')`);}
    if(signed&&noLocal)await wait(`!!localStorage.getItem('silicon-hustle-v04')&&JSON.parse(localStorage.getItem('silicon-hustle-v04')).seed===42`);
    if(signed&&empty){
     await wait(`document.querySelector('.sh-account [role="status"]')?.textContent.includes('DEVICE SAVE READY')`);assert.equal(await evaluate(`!!document.querySelector('[aria-label="Choose your game save"]')`),false,'Device-only launch resumes without a source picker');
-    await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='ACCOUNT').click()`);await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='SAVED GAMES').click()`);await wait(`!!document.querySelector('[aria-label="Choose your game save"]')&&!document.querySelector('.sh-dialog .sh-google').disabled`);await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==="KEEP THIS DEVICE'S SAVE").click()`);
+    await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='ACCOUNT').click()`);await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='SAVED GAMES').click()`);await wait(`!!document.querySelector('[aria-label="Choose your game save"]')&&!!document.querySelector('[data-save-source="device"]')`);await evaluate(`document.querySelector('[data-save-source="device"]').click()`);
    }
    if(signed)await wait(`document.querySelector('.sh-account [role="status"]')?.textContent.includes('SYNCED')`);
    if(signed&&!deviceChoice&&!differentCloud&&!noLocal&&!empty)assert.equal(await evaluate(`!!document.querySelector('[aria-label="Choose your game save"]')`),false,'Identical saves resume automatically');
@@ -102,8 +138,8 @@ test('offline browser: original gameplay parity, safe save resume and isolated R
     await wait(`JSON.parse(localStorage.getItem('silicon-hustle-v04')).positions.h100.qty===2`);
     await wait(`document.querySelector('.sh-account [role="status"]')?.textContent.includes('PAUSED')`);assert.equal(writes(),baselineWrites);
     await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='ACCOUNT').click()`);await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='SAVED GAMES').click()`);
-    await wait(`document.querySelector('.sh-save-picker')?.textContent.includes('Unavailable · reconnect to check')`);
-    assert.ok(await evaluate(`document.querySelector('.sh-save-picker .sh-primary').disabled&&document.querySelector('.sh-save-picker .sh-google').disabled`));
+    await wait(`document.querySelector('.sh-save-picker')?.textContent.includes('Cloud unavailable · reconnect to check')`);
+    assert.ok(await evaluate(`document.querySelectorAll('[data-save-source]').length===0`));
     await evaluate(`Array.from(document.querySelectorAll('.sh-save-picker button')).find(b=>b.textContent==='CONTINUE ON THIS DEVICE').click()`);
     const offlineSave=await evaluate(`localStorage.getItem('silicon-hustle-v04')`);
     await send('Page.reload',{},sessionId);await wait(`document.querySelector('.sh-account [role="status"]')?.textContent.includes('PAUSED')`);
@@ -112,10 +148,10 @@ test('offline browser: original gameplay parity, safe save resume and isolated R
     state.row={...state.row,game_state:{...state.row.game_state,cash:state.row.game_state.cash+1000}};
     await evaluate(`window.dispatchEvent(new Event('online'))`);await wait(`!!document.querySelector('.sh-save-picker')`);assert.equal(writes(),baselineWrites+1);
     assert.equal(await evaluate(`localStorage.getItem('silicon-hustle-v04')`),offlineSave);
-    assert.equal(await evaluate(`document.querySelector('.sh-save-picker h2').textContent`),'PICK UP WHERE YOU LEFT OFF');
+    assert.equal(await evaluate(`document.querySelector('.sh-save-picker h2').textContent`),'CHOOSE YOUR SAVE');
     for(const width of [390,320]){
      await send('Emulation.setDeviceMetricsOverride',{width,height:width===320?568:844,deviceScaleFactor:1,mobile:true},sessionId);
-     await evaluate(`document.querySelectorAll('.sh-save-picker p,.sh-save-picker button').forEach(e=>e.style.fontSize='20px')`);
+     await evaluate(`document.querySelectorAll('.sh-save-picker p,.sh-save-picker button,.sh-save-picker span,.sh-save-picker strong').forEach(e=>e.style.fontSize='20px')`);
      const geometry=await evaluate(`(()=>{const d=document.querySelector('.sh-save-picker'),r=d.getBoundingClientRect();d.scrollTop=d.scrollHeight;const b=Array.from(d.querySelectorAll('button')).at(-1).getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,last:b.bottom,height:innerHeight,width:innerWidth,clipped:d.scrollWidth>d.clientWidth};})()`);
      assert.ok(geometry.left>=0&&geometry.right<=geometry.width&&geometry.top>=0&&geometry.bottom<=geometry.height&&!geometry.clipped);assert.ok(geometry.last<=geometry.bottom,'Last action remains reachable by scrolling');
      const shot=await send('Page.captureScreenshot',{format:'png'},sessionId);await writeFile(join(root,'save-review-'+width+'.png'),Buffer.from(shot.data,'base64'));
@@ -290,6 +326,7 @@ test('offline browser: original gameplay parity, safe save resume and isolated R
   for(const options of [{signed:false},{signed:false,legacy:true},{signed:true},{signed:true,noLocal:true},{signed:true,differentCloud:true},{signed:true,empty:true},{signed:true,deviceChoice:true}]){
    const original=await scenario('main',options),release=await scenario('release',{...options,board:true});assert.deepEqual(release.afterGame,original.afterGame);assert.deepEqual(release.saveTraffic,original.saveTraffic,'Both gameplay implementations produce the same payloads through the shared save coordinator');console.log('PASS: baseline gameplay/save parity '+JSON.stringify(options));
   }
+  for(const [saveCase,noLocal,boardWidth] of [['legacyCloud',true,390],['legacyIdentical',false,320],['invalidCloud',true,390],['invalidCloud',true,320],['futureCloud',true,320],['offlineStartup',false,320]])await scenario('release',{signed:true,saveCase,noLocal,boardWidth});
   await scenario('release',{signed:true,resumeCase:true});
   for(const interactive of ['desktop','mobile','small'])await scenario('release',{interactive});
   await scenario('release',{board:true,publicEntry:true});console.log('PASS: configured anonymous client renders a populated Rankings response with rank, without sign-in, save requests or score writes');

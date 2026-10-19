@@ -14,7 +14,7 @@ Guest play works without any backend. First visit shows a retro founder welcome;
 
 ## Save behavior
 
-Guest saves continue in localStorage. Signed-in players automatically resume identical copies or a valid cloud-only save. A valid device-only save resumes after a successful cloud read confirms absence; **Account → Saved Games** provides explicit consent before importing an unbound device game into that account. Once synchronized, account-specific local history permits automatic uploads only while the cloud snapshot remains unchanged. A changed cloud save or unproven continuation opens **PICK UP WHERE YOU LEFT OFF**; timestamps and valuation are not used to choose a winner.
+Guest saves continue in localStorage. Signed-in players automatically resume identical copies or a valid cloud-only save. A valid device-only save resumes after a successful cloud read confirms absence; **Account → Saved Games** provides explicit consent before importing an unbound device game into that account. Once synchronized, account-specific local history permits automatic uploads only while the cloud snapshot remains unchanged. A changed cloud save or unproven continuation opens **CHOOSE YOUR SAVE**; timestamps and valuation are not used to choose a winner.
 
 Cloud read errors leave device play available and pause sync. Online/focus/app-foreground events recheck the cloud. Writes use a conditional timestamp and full-snapshot comparison; competing changes require review. Recovery copies are persisted locally before replacements; manual choices preserve both originals, and ordinary sync retains its latest before/after pair. Players can export them from Saved Games. Storage failure pauses sync; clearing app/browser storage removes this local history and recovery data. No additional database columns, triggers, or migrations are used. Supabase owner-only RLS remains required.
 
@@ -30,3 +30,9 @@ The React UI works within Capacitor. Before shipping iOS, configure a reliable n
 npm install
 npm run build
 ```
+
+## Save compatibility and recovery
+
+The same decoder is used by automatic resume and the game loader. Missing legacy display fields receive in-memory defaults; original snapshots and unknown metadata remain intact until an intentional game action saves progress. Missing financial/progression fields are not fabricated. Saves from an extended or unsupported game version are described accurately and kept for use in the matching version. An unreadable device save is not automatically replaced by a cloud copy or normal gameplay. An unsupported cloud snapshot cannot be overwritten by selecting device progress.
+
+For conflicts, compact source options show month and valuation using the existing game calculation. Open **Account → Saved Games → Recovery & save details** to export original copies or see a value-free format-check reason (for example, `reports` or `game-version`). Do not share full save exports publicly. A failed cloud read displays unavailable status rather than claiming that no save exists. Production data was not inspected as part of compatibility testing; physical-device format issues may require checking that reason locally.

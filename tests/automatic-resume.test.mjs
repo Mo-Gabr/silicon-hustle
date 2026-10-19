@@ -2,8 +2,9 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import ts from 'typescript';
+import {execFileSync} from 'node:child_process';
 const js=ts.transpileModule(readFileSync('src/automaticResume.ts','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
-const {ResumeCoordinator,DEVICE_KEY,LEGACY_KEY,HISTORY_PREFIX,validSave,sameSave,persistDevice,withSaveTimeout}=await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
+const {ResumeCoordinator,DEVICE_KEY,LEGACY_KEY,HISTORY_PREFIX,validSave,sameSave,persistDevice,withSaveTimeout,inspectSave,saveFromRaw}=await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
 const game=(patch={})=>({month:3,cash:5e6,prices:Object.fromEntries(['l40s','a100','h100','h200','b200','mi300','mi325','gaudi'].map(k=>[k,34000])),positions:{},labs:0,seed:42,ended:false,ending:'',headline:'SYNTHETIC',history:[],...patch});
 const clone=x=>structuredClone(x);
 class Disk{map=new Map();fail=null;getItem(k){return this.map.get(k)??null;}setItem(k,v){if(this.fail===k||this.fail==='all')throw Error('quota');this.map.set(k,v);}}
@@ -45,7 +46,7 @@ test('a late cloud read cannot replace edits made while it was in flight',async(
 test('stopped/account-switched requests cannot load old account data or write new account metadata',async()=>{const s=server(),c=client(s,{local:null});const g=gate();s.beforeRead=()=>g.promise;const pending=c.resume.check();await new Promise(r=>setImmediate(r));c.resume.stop();c.disk.setItem(DEVICE_KEY,JSON.stringify(game({seed:77})));s.identity='bob';g.release();await pending;assert.equal(JSON.parse(c.disk.getItem(DEVICE_KEY)).seed,77);assert.equal(c.disk.getItem(HISTORY_PREFIX+'alice'),null);assert.equal(c.reloads,0);});
 test('identity changes after the cloud read fail closed',async()=>{const s=server(),c=client(s,{local:null});s.beforeRead=()=>{s.identity='bob';};await c.resume.check();assert.equal(c.disk.getItem(DEVICE_KEY),null);assert.equal(c.reloads,0);assert.equal(s.writes.length,0);});
 test('storage failure before backup prevents automatic replacement or cloud writes',async()=>{for(const operation of ['load','write']){const s=server(),c=client(s,{local:operation==='load'?null:game()});if(operation==='write'){await c.resume.check();c.edit({cash:4e6});}const before=c.disk.getItem(DEVICE_KEY);c.disk.fail=HISTORY_PREFIX+'alice';await c.resume.check();assert.equal(c.disk.getItem(DEVICE_KEY),before);assert.equal(c.reloads,0);assert.equal(s.writes.length,0);}});
-test('failure writing device data retains originals and the recovery pair',async()=>{const s=server(),c=client(s,{local:null});c.disk.setItem(DEVICE_KEY,'INVALID ORIGINAL');c.disk.fail=DEVICE_KEY;await c.resume.check();assert.equal(c.disk.getItem(DEVICE_KEY),'INVALID ORIGINAL');assert.ok(c.history().recovery.includes('INVALID ORIGINAL'));assert.equal(c.reloads,0);});
+test('unreadable device plus valid cloud requires an explicit choice and retains both originals',async()=>{const s=server(),c=client(s,{local:null});c.disk.setItem(DEVICE_KEY,'INVALID ORIGINAL');c.disk.fail=DEVICE_KEY;await c.resume.check();assert.equal(c.disk.getItem(DEVICE_KEY),'INVALID ORIGINAL');assert.ok(c.history().recovery.includes('INVALID ORIGINAL'));assert.equal(c.reloads,0);assert.equal(c.resume.view.choice,true);});
 test('corrupt history pauses sync without clearing it and remains exportable',async()=>{const s=server(),c=client(s);c.disk.setItem(HISTORY_PREFIX+'alice','BROKEN HISTORY');await c.resume.check();assert.equal(c.disk.getItem(HISTORY_PREFIX+'alice'),'BROKEN HISTORY');assert.match(c.resume.exportRecovery(),/BROKEN HISTORY/);assert.equal(s.writes.length,0);});
 test('legacy key is compared without rewriting its economic data',async()=>{const s=server(),c=client(s,{local:null});c.disk.setItem(LEGACY_KEY,JSON.stringify(game()));await c.resume.check();assert.equal(c.resume.view.choice,false);assert.equal(c.disk.getItem(DEVICE_KEY),null);assert.equal(c.disk.getItem(LEGACY_KEY),JSON.stringify(game()));assert.equal(s.writes.length,0);});
 test('unsupported extended saves are preserved and never silently replaced by production main',async()=>{const s=server(),c=client(s,{local:game({month:35,gamble:{standardResult:{success:true},unicornMonth:34}})});const before=c.disk.getItem(DEVICE_KEY);await c.resume.check();assert.equal(c.disk.getItem(DEVICE_KEY),before);assert.equal(c.resume.view.choice,true);assert.equal(c.reloads,0);});
@@ -58,10 +59,53 @@ test('cloud deletion does not authorize automatic recreation from an old device'
 test('a failed primary device write returns false and leaves the last game intact',()=>{const previousStorage=globalThis.localStorage,previousWindow=globalThis.window;try{const disk=new Disk();disk.setItem(DEVICE_KEY,JSON.stringify(game()));disk.fail=DEVICE_KEY;let notices=0;globalThis.localStorage=disk;globalThis.window={dispatchEvent(){notices++;}};assert.equal(persistDevice(JSON.stringify(game({cash:1}))),false);assert.equal(JSON.parse(disk.getItem(DEVICE_KEY)).cash,5e6);assert.equal(notices,1);}finally{globalThis.localStorage=previousStorage;globalThis.window=previousWindow;}});
 test('edits arriving during a write are retained and synchronized as a subsequent conditional snapshot',async()=>{const s=server(),c=client(s);await c.resume.check();c.edit({cash:4e6});let once=true;s.beforeWrite=()=>{if(once){once=false;c.edit({cash:3e6});}};await c.resume.check();for(let i=0;i<10&&s.row.game_state.cash!==3e6;i++)await new Promise(r=>setImmediate(r));assert.equal(s.row.game_state.cash,3e6);assert.equal(JSON.parse(c.disk.getItem(DEVICE_KEY)).cash,3e6);assert.equal(s.writes.filter(w=>w.applied).length,2);});
 test('failed write keeps pending state and durable before/after without a tight retry loop',async()=>{const s=server(),c=client(s);await c.resume.check();c.edit({cash:4e6});s.failWrite=true;await c.resume.check();assert.equal(c.history().pending,true);assert.equal(JSON.parse(c.history().lastWrite.after).cash,4e6);assert.match(c.resume.view.status,/PAUSED/);s.failWrite=false;await c.resume.check();assert.equal(s.row.game_state.cash,4e6);});
-test('invalid device originals are archived before a supported local replacement',()=>{const oldStorage=globalThis.localStorage,oldWindow=globalThis.window;try{const disk=new Disk();disk.setItem(DEVICE_KEY,'BROKEN ORIGINAL');globalThis.localStorage=disk;globalThis.window={dispatchEvent(){}};assert.equal(persistDevice(JSON.stringify(game())),true);assert.ok(disk.getItem(HISTORY_PREFIX+'device-recovery').includes('BROKEN ORIGINAL'));}finally{globalThis.localStorage=oldStorage;globalThis.window=oldWindow;}});
+test('unreadable device originals are archived and normal gameplay cannot replace them',()=>{const oldStorage=globalThis.localStorage,oldWindow=globalThis.window;try{const disk=new Disk();disk.setItem(DEVICE_KEY,'BROKEN ORIGINAL');globalThis.localStorage=disk;globalThis.window={dispatchEvent(){}};assert.equal(persistDevice(JSON.stringify(game())),false);assert.equal(disk.getItem(DEVICE_KEY),'BROKEN ORIGINAL');assert.ok(disk.getItem(HISTORY_PREFIX+'device-recovery').includes('BROKEN ORIGINAL'));}finally{globalThis.localStorage=oldStorage;globalThis.window=oldWindow;}});
 test('two accounts cannot inherit one another’s continuation binding',async()=>{const s=server(),c=client(s);await c.resume.check();c.resume.stop();const second=server(null);second.identity='bob';second.api.write=async()=>{throw Error('Must not write');};const b=client(second,{disk:c.disk,local:null,account:'bob'});b.edit({cash:4e6});await b.resume.check();assert.equal(b.resume.view.status,'DEVICE SAVE READY');assert.equal(b.history().pending,false);});
 
 test('request deadlines use AbortController and work without AbortSignal.timeout',async()=>{
  assert.equal(await withSaveTimeout(async signal=>{assert.equal(signal.aborted,false);return 'read';}), 'read');
  await assert.rejects(withSaveTimeout(signal=>new Promise((resolve,reject)=>signal.addEventListener('abort',()=>reject(Error('deadline')))),5),/deadline/);
+});
+
+function historicalInitial(ref){
+ const source=execFileSync('git',['show',ref+':src/main.tsx'],{encoding:'utf8'}),ast=ts.createSourceFile('historical.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+ const values={};function walk(node){if(ts.isVariableDeclaration(node)&&['ASSETS','initial'].includes(node.name.getText(ast)))values[node.name.getText(ast)]=node.initializer.getText(ast);ts.forEachChild(node,walk);}walk(ast);
+ const js=ts.transpileModule(`const START=5000000;const ASSETS=${values.ASSETS};const initial=${values.initial};`,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+ return Function(js+'return initial();')();
+}
+test('actual historical serializers remain readable without stripping fields',()=>{
+ for(const ref of ['fbb951f','30c4575','f5df658']){const saved=historicalInitial(ref),before=JSON.stringify(saved);assert.equal(validSave(saved),true,ref);assert.deepEqual(inspectSave(saved).state,saved);assert.equal(JSON.stringify(saved),before);}
+});
+test('legacy display fields and nullable optional metadata are compatible without inventing financial or completion data',()=>{
+ const legacy=historicalInitial('30c4575');delete legacy.headline;delete legacy.history;delete legacy.ending;legacy.reports=null;legacy.gamble=null;legacy.achievements=['preserved'];
+ const before=JSON.stringify(legacy),decoded=inspectSave(legacy);assert.equal(decoded.issue,'');assert.equal(decoded.state.headline,'');assert.deepEqual(decoded.state.history,[]);assert.equal(decoded.state.ending,'');assert.deepEqual(decoded.state.reports,[]);assert.equal(decoded.state.cash,legacy.cash);assert.equal(decoded.state.seed,legacy.seed);assert.equal(decoded.state.ended,false);assert.deepEqual(decoded.state.achievements,['preserved']);assert.equal(JSON.stringify(legacy),before);
+ for(const key of ['cash','seed','labs','ended']){const missing={...legacy};delete missing[key];assert.equal(validSave(missing),false,key);assert.equal(inspectSave(missing).issue,key);}
+});
+test('cloud-only legacy snapshot resumes without cloud rewrite or mutation of the original raw data',async()=>{
+ const legacy=game({reports:null,gamble:null,achievements:['saved']});delete legacy.headline;delete legacy.history;delete legacy.ending;
+ const s=server(legacy),c=client(s,{local:null}),before=clone(s.row);await c.resume.check();assert.equal(c.reloads,1);assert.equal(c.resume.view.choice,false);assert.deepEqual(s.row,before);assert.equal(s.writes.length,0);assert.equal(c.disk.getItem(DEVICE_KEY),JSON.stringify(legacy));assert.deepEqual(c.history().recovery,[JSON.stringify(legacy)]);
+});
+test('new in-memory loader applies presentation defaults without touching storage and preserves metadata',()=>{
+ const source=readFileSync('src/main.tsx','utf8'),ast=ts.createSourceFile('main.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX),node=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name.text==='load');
+ const js=ts.transpileModule(node.getText(ast),{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+ const disk=new Disk(),legacy=game({reports:null,achievements:['keep']});delete legacy.history;delete legacy.headline;delete legacy.ending;const raw=JSON.stringify(legacy);disk.setItem(LEGACY_KEY,raw);
+ const loaded=Function('localStorage','saveFromRaw','initial',js+'return load();')(disk,saveFromRaw,()=>game({seed:999}));assert.deepEqual(loaded.history,[]);assert.deepEqual(loaded.achievements,['keep']);assert.equal(disk.getItem(LEGACY_KEY),raw);assert.equal(disk.getItem(DEVICE_KEY),null);
+});
+test('unsupported version and unreadable fields have accurate, value-free reasons',()=>{
+ assert.equal(inspectSave(game({gamble:{decision:'extend'}})).issue,'game-version');assert.match(inspectSave(game({gamble:{}})).reason,/matching game version/);
+ assert.equal(inspectSave(game({prices:{}})).issue,'prices');assert.equal(saveFromRaw('not JSON').issue,'json');
+ assert.ok(!inspectSave(game({cash:'PRIVATE_VALUE'})).reason.includes('PRIVATE_VALUE'));
+});
+test('invalid or future cloud snapshots are preserved, not selectable for load or replacement by device progress',async()=>{
+ for(const cloud of [game({cash:'unreadable'}),game({month:35,gamble:{decision:'extend',unicornMonth:34}})]){
+  const s=server(cloud),c=client(s),before=clone(s.row);await c.resume.check();assert.equal(c.resume.view.choice,true);await c.resume.choose('cloud');assert.equal(c.reloads,0);await c.resume.choose('device');assert.deepEqual(s.row,before);assert.equal(s.writes.length,0);assert.equal(c.disk.getItem(DEVICE_KEY),JSON.stringify(game()));assert.ok(c.history().recovery.includes(JSON.stringify(cloud)));
+ }
+});
+
+test('cloud-only primary storage failure retains the recovery copy and does not announce a load',async()=>{
+ const s=server(),c=client(s,{local:null});c.disk.fail=DEVICE_KEY;await c.resume.check();assert.equal(c.disk.getItem(DEVICE_KEY),null);assert.equal(c.reloads,0);assert.equal(s.writes.length,0);assert.ok(c.history().recovery.includes(JSON.stringify(s.row.game_state)));assert.match(c.resume.view.status,/STORAGE/);
+});
+test('unreadable device may be replaced only by an explicit valid cloud choice, keeping the original backup',async()=>{
+ const s=server(),c=client(s,{local:null});c.disk.setItem(DEVICE_KEY,'original unsupported bytes');await c.resume.check();assert.equal(c.disk.getItem(DEVICE_KEY),'original unsupported bytes');assert.equal(c.resume.view.choice,true);assert.equal(c.reloads,0);
+ await c.resume.choose('cloud');assert.deepEqual(JSON.parse(c.disk.getItem(DEVICE_KEY)),s.row.game_state);assert.equal(c.reloads,1);assert.ok(c.history().recovery.includes('original unsupported bytes'));assert.equal(s.writes.length,0);
 });

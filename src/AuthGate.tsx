@@ -6,7 +6,7 @@ import {Browser} from '@capacitor/browser';
 import {SocialLogin, type GoogleLoginResponseOnline} from '@capgo/capacitor-social-login';
 import './auth.css';
 import './automatic-resume.css';
-import {ResumeCoordinator,validSave,parseSave,deviceRaw,pauseDeviceWrites,withSaveTimeout,DEVICE_RECOVERY_KEY,type ResumeView} from './automaticResume';
+import {ResumeCoordinator,validSave,inspectSave,saveFromRaw,sameSave,deviceRaw,pauseDeviceWrites,withSaveTimeout,DEVICE_RECOVERY_KEY,type ResumeView} from './automaticResume';
 
 const url=import.meta.env.VITE_SUPABASE_URL as string|undefined;
 const key=import.meta.env.VITE_SUPABASE_ANON_KEY as string|undefined;
@@ -46,15 +46,24 @@ async function completeNativeLogin(link:string){
 
 const WELCOME_KEY='silicon-hustle-welcome-v09';
 
-function saveSummary(raw:unknown){if(!raw)return 'No save found';if(!validSave(raw))return 'Unsupported or damaged save · export for recovery';const s=raw as {month:number;ended:boolean;cash:number};return `Month ${s.month}${s.ended?' · completed':' · in progress'} · Cash $${Math.round(s.cash).toLocaleString('en-US')}`;}
+function parseOriginal(raw:string|null|undefined){try{return raw?JSON.parse(raw):null;}catch{return null;}}
+type SaveValuation=(snapshot:Record<string,unknown>)=>number;
+function saveSummary(state:Record<string,unknown>,valuationOf?:SaveValuation){
+ let valuation:number|undefined;try{const value=valuationOf?.(state);if(typeof value==='number'&&Number.isFinite(value))valuation=value;}catch{/* Only show a valuation calculated by the game's existing handler. */}
+ return `Month ${state.month}${state.ended?' · completed':''}${valuation===undefined?'':' · Valuation $'+Math.round(valuation).toLocaleString('en-US')}`;
+}
+function SaveOption({source,state,valuationOf,choose,checking}:{source:'cloud'|'device';state:Record<string,unknown>;valuationOf?:SaveValuation;choose:(source:'cloud'|'device')=>void;checking:boolean}){
+ return <button type="button" className="sh-google sh-save-option" data-save-source={source} disabled={checking} onClick={()=>choose(source)}><strong>{source==='cloud'?'CLOUD SAVE':'DEVICE SAVE'}</strong><span>{saveSummary(state,valuationOf)}</span></button>;
+}
 
-export default function AuthGate({children}:{children:React.ReactNode}){
+export default function AuthGate({children,valuationOf}:{children:React.ReactNode;valuationOf?:SaveValuation}){
  const [welcome,setWelcome]=useState(()=>localStorage.getItem(WELCOME_KEY)!=='yes');
  const [session,setSession]=useState<Session|null>(null);
  const [busy,setBusy]=useState(false);
  const [notice,setNotice]=useState('');
  const [email,setEmail]=useState('');
  const [showAuth,setShowAuth]=useState(false);
+ const [saveManager,setSaveManager]=useState(false);
  const [resume,setResume]=useState<ResumeView|null>(null);
  const [deviceError,setDeviceError]=useState('');
  const coordinator=useRef<ResumeCoordinator|null>(null);
@@ -140,10 +149,10 @@ return () => {
   if(!resume?.choice)return;
   const dialog=document.querySelector<HTMLElement>('.sh-save-picker');
   const previous=document.activeElement as HTMLElement|null;
-  const buttons=()=>Array.from(dialog?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')||[]);
-  buttons()[0]?.focus();
+  const buttons=()=>Array.from(dialog?.querySelectorAll<HTMLElement>('button:not(:disabled),summary')||[]).filter(element=>element.getClientRects().length>0);
+  (buttons()[0]??dialog)?.focus();
   const key=(event:KeyboardEvent)=>{
-   if(event.key==='Escape'&&!coordinator.current?.view.checking){event.preventDefault();coordinator.current?.closeReview();}
+   if(event.key==='Escape'&&!coordinator.current?.view.checking){event.preventDefault();closeSaves();}
    if(event.key!=='Tab')return;
    const available=buttons(),first=available[0],last=available.at(-1);
    if(!first)return;
@@ -152,7 +161,8 @@ return () => {
   };
   dialog?.addEventListener('keydown',key);
   return ()=>{dialog?.removeEventListener('keydown',key);if(previous?.isConnected)previous.focus();};
- },[resume?.choice]);
+ },[resume?.choice,resume?.checking,saveManager]);
+ function closeSaves(){setSaveManager(false);coordinator.current?.closeReview();}
  function exportSaves(){try{const text=coordinator.current?.exportRecovery()??JSON.stringify({device:deviceRaw(localStorage),deviceRecovery:localStorage.getItem(DEVICE_RECOVERY_KEY)},null,2);const url=URL.createObjectURL(new Blob([text],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='silicon-hustle-save-recovery.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch{setDeviceError('Could not export recovery copies. Device storage may be unavailable.');}}
  async function signInGoogle(){
   if(!supabase){setNotice('Google sign-in will be available after Supabase is configured.');return;}
@@ -188,14 +198,37 @@ return () => {
   }catch(error){setNotice(error instanceof Error?error.message:'Could not send sign-in email.');}
   finally{setBusy(false);}
  }
+ const deviceSave=saveFromRaw(resume?.device??null),cloudSave=inspectSave(resume?.cloud?.game_state);
+ const cloudUnavailable=resume?.status==='DEVICE PLAY · SYNC PAUSED';
+ const bothValid=!!deviceSave.state&&!!cloudSave.state;
+ const genuineConflict=bothValid&&!sameSave(parseOriginal(resume?.device),resume?.cloud?.game_state);
+ const choose=(source:'cloud'|'device')=>void coordinator.current?.choose(source);
  return <>
   {!welcome&&<div className="sh-account"><span>{session?.user.email?'FOUNDER: '+session.user.email:'GUEST MODE · SAVED ON THIS DEVICE'}</span>{session&&<span role="status">{resume?.status}</span>}<button onClick={()=>{setNotice('');setShowAuth(true);}}>{session?'ACCOUNT':'SIGN IN / CLOUD SAVE'}</button></div>}
   {deviceError&&<div className="sh-note" role="alert">{deviceError}<button className="sh-link" onClick={exportSaves}>EXPORT DEVICE SAVE</button></div>}
   {session&&resume?.notice&&!resume.choice&&<p className="sh-note" role="status">{resume.notice}</p>}
   {ready&&children}
   {welcome&&<div className="sh-gate" role="dialog" aria-modal="true" aria-label="Welcome to Silicon Hustle"><div className="sh-welcome"><div className="sh-eyebrow">SILICON HUSTLE // EST. 2026</div><h1>WELCOME, FOUNDER.</h1><div className="sh-portrait"><img src="/founder.png" alt="Pixel-art portrait of the Silicon Hustle founder" onError={e=>{e.currentTarget.style.display='none';}}/></div><p className="sh-quote">“Every unicorn starts with a questionable decision.”</p><p className="sh-sub">You've got $5 million, 30 months, and investors with opinions. What could possibly go wrong?</p><button className="sh-primary" onClick={()=>{localStorage.setItem(WELCOME_KEY,'yes');setWelcome(false);}}>LET'S HUSTLE →</button><button className="sh-link" onClick={()=>{localStorage.setItem(WELCOME_KEY,'yes');setWelcome(false);setShowAuth(true);}}>SIGN IN TO SAVE ACROSS DEVICES</button></div></div>}
-  {showAuth&&<div className="sh-gate" role="presentation"><section className="sh-dialog" role="dialog" aria-modal="true" aria-label="Founder account"><button className="sh-close" onClick={()=>setShowAuth(false)} aria-label="Close">✕</button><div className="sh-eyebrow">FOUNDER ACCESS</div><h2>{session?'YOUR ACCOUNT':'SAVE YOUR EMPIRE.'}</h2>{session?<><p>Signed in as {session.user.email||'founder'}.</p><p>Your progress can sync across devices when cloud saves are configured.</p><button className="sh-primary" onClick={()=>{setShowAuth(false);}}>CONTINUE PLAYING</button><button className="sh-primary" onClick={()=>{setShowAuth(false);void coordinator.current?.review();}}>SAVED GAMES</button><button className="sh-link" onClick={async()=>{coordinator.current?.stop();await supabase?.auth.signOut();setShowAuth(false);setNotice('Signed out. This device keeps its local save.');}}>SIGN OUT</button></>:<><p>Play for free without an account. Sign in when you want to keep your empire across devices.</p><button className="sh-google" onClick={signInGoogle} disabled={busy||!supabase}>CONTINUE WITH GOOGLE</button><div className="sh-divider">OR EMAIL A MAGIC LINK</div><form onSubmit={signInEmail}><label htmlFor="sh-email">EMAIL ADDRESS</label><input id="sh-email" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="founder@example.com" required/><button className="sh-primary" disabled={busy||!supabase} type="submit">EMAIL ME A SIGN-IN LINK</button></form>{!supabase&&<p className="sh-note">Account sign-in is being configured. Guest play works now.</p>}<button className="sh-link" onClick={()=>setShowAuth(false)}>KEEP PLAYING AS GUEST →</button></>}{notice&&<p className="sh-note" role="status">{notice}</p>}</section></div>}
-  {resume?.choice&&session&&<div className="sh-gate"><section className="sh-dialog sh-save-picker" role="dialog" aria-modal="true" aria-label="Choose your game save"><div className="sh-eyebrow">SAVED GAMES</div><h2>PICK UP WHERE YOU LEFT OFF</h2><p>Choose the game to continue. Recovery copies are kept on this device before either save is replaced.</p><p>Device: {saveSummary(parseSave(resume.device))}</p><p>Cloud: {resume.checking?'Checking…':resume.status==='DEVICE PLAY · SYNC PAUSED'?'Unavailable · reconnect to check':saveSummary(resume.cloud?.game_state)}</p><button className="sh-primary" disabled={resume.checking||resume.status==='DEVICE PLAY · SYNC PAUSED'||!validSave(resume.cloud?.game_state)} onClick={()=>void coordinator.current?.choose('cloud')}>USE CLOUD SAVE</button><button className="sh-google" disabled={resume.checking||resume.status==='DEVICE PLAY · SYNC PAUSED'||!parseSave(resume.device)} onClick={()=>void coordinator.current?.choose('device')}>KEEP THIS DEVICE'S SAVE</button>{resume.notice&&<p className="sh-note" role="status">{resume.notice}</p>}<button className="sh-link" onClick={exportSaves}>EXPORT RECOVERY COPIES</button><button className="sh-link" disabled={resume.checking} onClick={()=>coordinator.current?.closeReview()}>CONTINUE ON THIS DEVICE</button></section></div>}
+  {showAuth&&<div className="sh-gate" role="presentation"><section className="sh-dialog" role="dialog" aria-modal="true" aria-label="Founder account"><button className="sh-close" onClick={()=>setShowAuth(false)} aria-label="Close">✕</button><div className="sh-eyebrow">FOUNDER ACCESS</div><h2>{session?'YOUR ACCOUNT':'SAVE YOUR EMPIRE.'}</h2>{session?<><p>Signed in as {session.user.email||'founder'}.</p><p>Your progress can sync across devices when cloud saves are configured.</p><button className="sh-primary" onClick={()=>{setShowAuth(false);}}>CONTINUE PLAYING</button><button className="sh-primary" onClick={()=>{setShowAuth(false);setSaveManager(true);void coordinator.current?.review();}}>SAVED GAMES</button><button className="sh-link" onClick={async()=>{coordinator.current?.stop();await supabase?.auth.signOut();setShowAuth(false);setNotice('Signed out. This device keeps its local save.');}}>SIGN OUT</button></>:<><p>Play for free without an account. Sign in when you want to keep your empire across devices.</p><button className="sh-google" onClick={signInGoogle} disabled={busy||!supabase}>CONTINUE WITH GOOGLE</button><div className="sh-divider">OR EMAIL A MAGIC LINK</div><form onSubmit={signInEmail}><label htmlFor="sh-email">EMAIL ADDRESS</label><input id="sh-email" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="founder@example.com" required/><button className="sh-primary" disabled={busy||!supabase} type="submit">EMAIL ME A SIGN-IN LINK</button></form>{!supabase&&<p className="sh-note">Account sign-in is being configured. Guest play works now.</p>}<button className="sh-link" onClick={()=>setShowAuth(false)}>KEEP PLAYING AS GUEST →</button></>}{notice&&<p className="sh-note" role="status">{notice}</p>}</section></div>}
+  {resume?.choice&&session&&<div className="sh-gate"><section className="sh-dialog sh-save-picker" tabIndex={-1} role="dialog" aria-modal="true" aria-label="Choose your game save">
+   <h2>{saveManager?'SAVED GAMES':genuineConflict?'CHOOSE YOUR SAVE':'SAVE NEEDS REVIEW'}</h2>
+   {genuineConflict&&!saveManager&&<p>We found two different games. Which one should we keep?</p>}
+   {resume.checking&&<p role="status">Checking saves…</p>}
+   {cloudUnavailable&&<p role="status">Cloud unavailable · reconnect to check. Your saves have not been replaced.</p>}
+   {!resume.checking&&!cloudUnavailable&&<>
+    {cloudSave.state&&<SaveOption source="cloud" state={cloudSave.state} valuationOf={valuationOf} choose={choose} checking={false}/>}
+    {deviceSave.state&&(!resume.cloud||cloudSave.state)&&<SaveOption source="device" state={deviceSave.state} valuationOf={valuationOf} choose={choose} checking={false}/>}
+    {resume.device!==null&&!deviceSave.state&&<p className="sh-save-issue">Device: {deviceSave.reason}</p>}
+    {resume.cloud&&!cloudSave.state&&<p className="sh-save-issue">Cloud: {cloudSave.reason}</p>}
+    {!resume.device&&!resume.cloud&&<p>No saved games found.</p>}
+    {saveManager&&!resume.device&&resume.cloud&&<p>No device save found.</p>}
+    {saveManager&&deviceSave.state&&!resume.cloud&&<p>No cloud save found.</p>}
+    {deviceSave.state&&resume.cloud&&!cloudSave.state&&<p>Device: {saveSummary(deviceSave.state,valuationOf)}. Continue locally while the cloud save is reviewed.</p>}
+   </>}
+   {resume.notice&&<p className="sh-note" role="status">{resume.notice}</p>}
+   {saveManager?<details className="sh-save-recovery"><summary>Recovery &amp; save details</summary><p>Original copies are kept on this device before a replacement. Export them before clearing app storage.</p>{deviceSave.issue&&resume.device!==null&&<p>Device format check: {deviceSave.issue}</p>}{cloudSave.issue&&resume.cloud&&!cloudUnavailable&&<p>Cloud format check: {cloudSave.issue}</p>}<button className="sh-link" onClick={exportSaves}>EXPORT RECOVERY COPIES</button></details>:!genuineConflict&&<button className="sh-link" onClick={()=>setSaveManager(true)}>OPEN SAVED GAMES</button>}
+   <button className="sh-link" disabled={resume.checking} onClick={closeSaves}>{deviceSave.state?'CONTINUE ON THIS DEVICE':'CLOSE'}</button>
+  </section></div>}
 
  </>;
 }
