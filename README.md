@@ -1,11 +1,24 @@
 # Silicon Hustle
 
-A fictional AI hardware trading and startup simulator. Start with **$5M cash** and a **$25M company valuation**, then work toward a **$100M valuation within 30 months**.
+Silicon Hustle is an AI hardware trading and startup simulator built primarily for **iPhone**, using Capacitor, React, TypeScript, and Vite.
 
-**One device. One game.** Progress saves and resumes locally. Accounts are optional; gameplay never waits for an online service.
+Start with **$5M cash** and a **$25M company valuation**. Trade chips, grow your AI lab, survive the market, and try to reach a **$100M valuation within 30 months**.
 
-[Play on the web](https://silicon-hustle.vercel.app)
+**Three moves. One $100M exit.** Unless you decide $100M isn't enough.
 
+**iOS is the development priority.** The web version remains available at [silicon-hustle.vercel.app](https://silicon-hustle.vercel.app).
+
+**One device. One game.** Progress saves locally. Gameplay doesn't require an account or internet connection, and saved games do not synchronize between devices.
+
+### Current status
+
+- **iOS:** Successfully built and tested on a physical iPhone.
+- **Distribution:** Ad Hoc IPA exported for external testing. No TestFlight or App Store release yet.
+- **Save protection:** An in-place iPhone update successfully retained existing progress. Reinstallation and recovery remain separate validation tasks.
+- **Rankings:** THE OVERLORD is a fictional placeholder. Live competitive rankings are not released.
+- **Development branch:** `ios-testing`.
+
+For native build instructions, see [IOS_SETUP.md](IOS_SETUP.md).
 ## Gameplay
 
 - Buy and sell simulated AI hardware from NVIDIA, AMD, and Intel.
@@ -71,11 +84,15 @@ See [optional account authentication](AUTH_SETUP.md). Existing SQL files are his
 
 ## Platforms and technology
 
-- **Web:** React, TypeScript, and Vite, hosted on Vercel.
-- **iOS:** Capacitor packages the same React interface and trading handlers in the native application. The app has been successfully installed and played on a physical iPhone through Xcode.
-- **Backend:** Optional Supabase authentication. Existing Rankings code/data are preserved, but the active Coming Soon page does not request them.
+- **iOS (primary):** Capacitor packages the React, TypeScript, and Vite application for iPhone. Successfully built and tested on a physical device through Xcode. An Ad Hoc IPA has also been exported for external testing.
+- **Web (secondary):** React, TypeScript, and Vite, hosted on Vercel.
+- **Backend:** Optional Supabase authentication. Existing Rankings code and data are preserved, but the active THE OVERLORD placeholder does not make backend requests.
 
-The package version is **0.9.0**. There is no App Store or TestFlight release.
+The package version is **0.9.0**.
+
+**Release status:** iOS development and Ad Hoc testing. No App Store or TestFlight release yet.
+
+For native setup, signing, and distribution instructions, see [IOS_SETUP.md](IOS_SETUP.md).
 
 ## Local development
 
@@ -142,14 +159,16 @@ open ios/App/App.xcworkspace
 
 In Xcode, select the App scheme, configure your development signing team for a physical device, and choose an iPhone simulator or connected iPhone. Build and run from Xcode. After changing web code, repeat the production-mode build and `npx cap copy ios` before rebuilding the native app. Production mode selects Vite's build configuration; it does not deploy anything.
 
-See the [iOS validation checklist](IOS_SETUP.md#release-checklist) and [trading panel behavior](INTERACTIVE_CHIP_TRADING.md) for additional development context. The commands above apply to the committed project; older first-time platform-creation instructions in the setup notes are historical.
+See the [iOS validation checklist](IOS_SETUP.md#release-checklist) and [trading panel behavior](INTERACTIVE_CHIP_TRADING.md) for additional development context. The commands above use the existing native project. For the complete iOS-first workflow, including physical-device testing, Ad Hoc IPA distribution, signing, and save protection, see IOS_SETUP.md.
 
 ## Current limitations
 
-- Live Rankings is unavailable in the active UI. THE OVERLORD is fictional and does not represent verified scores. Existing historical scores remain player-submitted.
-- Games do not transfer between devices. Optional native account sign-in, recovery export and local persistence across app updates/reinstallation still need physical-device validation.
-- Older saves without a reliable previous-month price display **Unavailable** until a subsequent month transition provides a baseline.
-- The iOS app is a development build run through Xcode, with no App Store or TestFlight release.
+- **Rankings:** Live competitive Rankings are not available. MOGABR is fictional, not a verified player score. Historical Rankings data remains separate from the active placeholder.
+- **Local saves:** Games do not synchronize between devices. One in-place iPhone update successfully preserved progress, but reinstalling the app, recovering deleted saves, and transferring progress between devices remain unverified.
+- **Authentication:** Native iOS sign-in and OAuth callbacks are not yet validated. Gameplay does not require an account.
+- **Historical market data:** Older saves without a reliable previous-month price display **Unavailable** until a subsequent month transition establishes a baseline.
+- **iOS distribution:** The app has been tested through Xcode, and an Ad Hoc IPA has been exported. External tester installation remains to be confirmed. There is no TestFlight or App Store release.
+
 
 ## Local save recovery after the diagnostic build
 
