@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed
+
+- Personal Best now persists across separate games, resets and restarts, isolated for each authenticated account and Guest. Existing scoped snapshots and recovery copies seed the record without claiming unassigned legacy games.
+- Account transitions invalidate stale save callbacks, including returning to the same account. Guest sign-out preserves previous Guest progress and its best; interrupted record writes do not block ordinary gameplay saves.
+- Explicit legacy assignment retains existing recovery entries so archived Month 42 games remain available for the existing selection flow. Original legacy saves and archives remain untouched.
+
 ### Changed
 
 - THE OVERLORD now follows the supplied financial-dashboard reference: one rounded dark-green panel, gold crown and accents, restrained sans-serif hierarchy, and matching card treatment on desktop and mobile.

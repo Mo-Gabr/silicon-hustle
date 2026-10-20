@@ -12,12 +12,13 @@ export const SYSTEM_NOTICES=[
  "Antitrust regulators have requested a meeting. Their compute allocation is pending."
 ] as const;
 
-/** Fictional, local-only intermission. No account, game, storage or API dependencies. */
-export default function Overlord({game,currentValuation}:{game?:unknown;currentValuation?:number}){
+/** Fixed fictional Rankings with a caller-supplied local best; no storage or API access. */
+export default function Overlord({game,currentValuation,savedBest=null}:{game?:unknown;currentValuation?:number;savedBest?:number|null}){
  const [notice,setNotice]=useState(0);
- const personalBest=game!==undefined&&currentValuation!==undefined
+ const runBest=game!==undefined&&currentValuation!==undefined
   ?personalBestValue(game,currentValuation)
   :null;
+ const personalBest=runBest===null?savedBest:savedBest===null?runBest:Math.max(runBest,savedBest);
  return <section className="overlord" aria-labelledby="overlord-title">
   <header className="overlord-heading"><p><svg className="overlord-crown" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m3 6 5 5 4-7 4 7 5-5-3 12H6L3 6Z"/><path d="M7 21h10"/></svg><span>SILICON HUSTLE / THE OVERLORD</span></p><span className="overlord-coming">TOP 10</span></header>
   <article className="overlord-empire" aria-label="Fictional Boss of Bosses">

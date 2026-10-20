@@ -87,7 +87,7 @@ test('all six manual notices match approved copy and no timer, network or persis
  const source=readFileSync('src/Overlord.tsx','utf8');
  for(const forbidden of ['supabase','fetch(','localStorage','sessionStorage','setInterval','setTimeout','BillionaireBoard','VerifiedRankings'])assert.ok(!source.includes(forbidden),forbidden);
  assert.ok(source.includes('type="button"'));assert.ok(source.includes('(current+1)%SYSTEM_NOTICES.length'));
- const app=readFileSync('src/main.tsx','utf8');assert.ok(app.includes("{tab==='board'&&<Overlord game={s} currentValuation={worth}/>}"));assert.ok(app.includes('>RANKINGS</button>'));assert.ok(!app.includes('BillionaireBoard'));assert.ok(!app.includes('announceBoardPeak'));
+ const app=readFileSync('src/main.tsx','utf8');assert.ok(app.includes("{tab==='board'&&<Overlord game={s} currentValuation={worth} savedBest={savedPersonalBest(store)}/>}"));assert.ok(app.includes('>RANKINGS</button>'));assert.ok(!app.includes('BillionaireBoard'));assert.ok(!app.includes('announceBoardPeak'));
 });
 test('gameplay, progression and save handlers remain identical to playable 2794bd8',()=>{
  const originalGamble=execFileSync('git',['show','2794bd8:src/foundersGamble.ts'],{encoding:'utf8'});

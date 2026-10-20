@@ -1,4 +1,5 @@
-import {GAME_KEYS,RECOVERY_KEY,decodeLocal,readLocal} from './localSaves';
+import {savedPersonalBest,rememberPersonalBest,snapshotBest} from './personalBest';
+import {LOCAL_KEY,GAME_KEYS,RECOVERY_KEY,decodeLocal,readLocal} from './localSaves';
 import {CHOICE_KEY} from './localSaveChoice';
 
 export const ACCOUNT_PREFIX='silicon-hustle-account-v1:';
@@ -12,14 +13,36 @@ export function accountKey(id:string,key:string){
  return `${ACCOUNT_PREFIX}${encodeURIComponent(id)}:${key}`;
 }
 
+/** Each account transition invalidates old callbacks, including A → B → A. */
+export function accountAuthority(){
+ let selected:string|null=null;
+ let token=()=>false;
+ return {select(id:string|null){
+  if(selected!==id){selected=id;const guard=()=>selected===id&&token===guard&&id!==null;token=guard;}
+  return token;
+ }};
+}
+
 /** Adapt the existing local save engine without changing its validation. */
-export function accountStore(storage:Pick<Storage,'getItem'|'setItem'>,id:string){
+export function accountStore(storage:Pick<Storage,'getItem'|'setItem'>,id:string,isActive:()=>boolean=()=>true){
+ const scoped={getItem:(key:string)=>storage.getItem(accountKey(id,key)),setItem:(key:string,value:string)=>storage.setItem(accountKey(id,key),value)};
  return {
   getItem(key:string){
    return storage.getItem(accountKey(id,key));
   },
   setItem(key:string,value:string){
-   storage.setItem(accountKey(id,key),value);
+   if(!isActive())throw Error('Your account changed. Reopen the game before saving.');
+   if(key!==LOCAL_KEY){scoped.setItem(key,value);return;}
+   const current=readLocal(scoped);
+   let next:Record<string,unknown>|null=null;try{next=decodeLocal(JSON.parse(value));}catch{}
+   // Preserve a confirmed outgoing best before a reset, recovery choice or sign-out replaces it.
+   const replacing=current.state&&next&&(current.state.seed!==next.seed||Number(next.month)<Number(current.state.month));
+   try{rememberPersonalBest(scoped,savedPersonalBest(scoped));}catch(error){if(replacing)throw error;}
+   scoped.setItem(key,value);
+   if(scoped.getItem(key)!==value)throw Error('Your device could not save progress.');
+   // An interrupted metadata write is recoverable from the committed snapshot on restart.
+   try{rememberPersonalBest(scoped,snapshotBest(next));}catch{/* Never block ordinary gameplay saves. */}
+
   }
  };
 }
@@ -70,7 +93,14 @@ export function claimLegacySave(
  }
 
  // Preserve every original save before marking the migration complete.
- const archive=JSON.stringify(originals.filter((item):item is {key:string,raw:string}=>item.raw!==null));
+ const preserved=originals.filter((item):item is {key:string,raw:string}=>item.raw!==null);
+ const legacyArchive=storage.getItem(RECOVERY_KEY);
+ if(legacyArchive!==null){
+  let entries:unknown;try{entries=JSON.parse(legacyArchive);}catch{throw Error('The existing recovery copy needs attention. Nothing was overwritten.');}
+  if(!Array.isArray(entries)||!entries.every(item=>item&&typeof item.key==='string'&&typeof item.raw==='string'))throw Error('The existing recovery copy needs attention. Nothing was overwritten.');
+  for(const entry of entries)if(!preserved.some(item=>item.key===entry.key&&item.raw===entry.raw))preserved.push(entry);
+ }
+ const archive=JSON.stringify(preserved);
  // On retry, only accept data that matches the original migration.
  if(pending!==null){
   if(pending!==archive){

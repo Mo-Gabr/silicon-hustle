@@ -1,15 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
-import ts from 'typescript';
+import {build} from 'esbuild';
+import {createRequire} from 'node:module';
 
-const source=readFileSync('src/accountSaves.ts','utf8');
-const js=ts.transpileModule(source,{
- compilerOptions:{module:ts.ModuleKind.CommonJS}
-}).outputText;
-
-const exports={};
-const module={exports};
+const compiled=await build({entryPoints:['src/accountSaves.ts'],bundle:true,write:false,format:'cjs',platform:'node'});
+const module={exports:{}};
+new Function('require','module','exports',compiled.outputFiles[0].text)(createRequire(import.meta.url),module,module.exports);
 const game=()=>({
  month:3,cash:5e6,labs:0,seed:42,ended:false,
  history:[],headline:'Synthetic',ending:'',
@@ -20,17 +16,6 @@ const game=()=>({
  positions:{}
 });
 const original=JSON.stringify(game());
-
-const require=()=>({
- GAME_KEYS:['silicon-hustle-local-v1','silicon-hustle-v04','compute-empire-v04'],
- RECOVERY_KEY:'silicon-hustle-local-originals-v1',
- CHOICE_KEY:'silicon-hustle-local-choice-v1',
- decodeLocal:value=>value&&typeof value==='object'
-  &&value.month===3&&value.seed===42&&value.cash===5e6
-  &&value.ended===false&&value.prices&&value.positions
-  ?value:null
-});
-new Function('require','module','exports',js)(require,module,exports);
 
 const {accountId,accountKey,accountStore,hasLegacySave}=module.exports;
 
