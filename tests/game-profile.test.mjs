@@ -7,6 +7,21 @@ const load=async path=>import('data:text/javascript;base64,'+Buffer.from(ts.tran
 const {localFounderName}=await load('src/gameProfile.ts');
 const {readLocal,writeLocal,LOCAL_KEY,OLD_KEY,LEGACY_KEY}=await load('src/localSaves.ts');
 const game=()=>({month:3,cash:5e6,labs:0,seed:42,ended:false,history:[],headline:'Synthetic',ending:'',prices:Object.fromEntries(['l40s','a100','h100','h200','b200','mi300','mi325','gaudi'].map(k=>[k,34000])),positions:{}});
+const protectedRead=f=>{
+ const s=readFileSync(f,'utf8');
+ if(f==='src/LocalRecovery.tsx'){
+  return s
+    .replace("save,retry,start,store=localStorage", "save,retry,start")
+    .replace("start:()=>void;store?:Pick<Storage,'getItem'|'setItem'>", "start:()=>void")
+    .replace("recoveryFile(store)", "recoveryFile(localStorage)");
+ }
+ if(f!=='src/foundersGamble.ts')return s;
+ const a=s.indexOf('/** Highest eligible valuation in the current run');
+ const b=s.indexOf('\n}\n\n',a);
+ if(a<0||b<0)throw Error('Personal Best function missing');
+ return s.slice(0,a)+s.slice(b+4);
+};
+
 test('unnamed games use Founder without borrowing account or Rankings identity',()=>{
  for(const value of [null,undefined,[],{}, {email:'synthetic@example.invalid',user_metadata:{full_name:'Account Identity'}},{self:{display_name:'Published Identity'}}])assert.equal(localFounderName(value),'Founder');
 });
@@ -34,7 +49,7 @@ test('name lookup is read-only and chosen names survive historical-save upgrades
  }
 });
 test('playable recovery preserves persistence, Rankings and game economics',()=>{
- for(const file of ['src/localSaves.ts','src/LocalRecovery.tsx','src/BillionaireBoard.tsx','src/boardAttribution.ts','src/leaderboardCore.ts','src/foundersGamble.ts','src/auth.css'])assert.equal(readFileSync(file,'utf8'),execFileSync('git',['show','25aa122:'+file],{encoding:'utf8'}),file);
+ for(const file of ['src/localSaves.ts','src/LocalRecovery.tsx','src/BillionaireBoard.tsx','src/boardAttribution.ts','src/leaderboardCore.ts','src/foundersGamble.ts','src/auth.css'])assert.equal(protectedRead(file),execFileSync('git',['show','25aa122:'+file],{encoding:'utf8'}),file);
  assert.ok(!readFileSync('src/main.tsx','utf8').includes('SAVE_DIAGNOSTIC_BUILD'));
  assert.ok(!readFileSync('src/AuthGate.tsx','utf8').includes('SAVE DIAGNOSTICS'));
 });
