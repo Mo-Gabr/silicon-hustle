@@ -1,24 +1,61 @@
-# Optional Rankings Authentication
+# Optional Account Authentication
 
-## Gameplay needs no account or backend
+## Gameplay and Rankings need no account or backend
 
-**One device. One game.** Silicon Hustle saves and resumes on the current browser profile or installed iOS app. Guest gameplay, Founder’s Gamble, Month 30 victories and achievements work offline. Sign-in never gates launch or changes the local game.
+**One device. One game.** Guest gameplay, local autosave, Founder’s Gamble, Month 30 victories and achievements work offline. Authentication is optional; it is not required to play.
 
-Cloud synchronization, server-save reads/writes, save-source selection and cloud recovery have been removed from the application. Existing Supabase data remains untouched. No `game_saves` table setup or database migration is needed for this client.
+THE OVERLORD displays a **fixed fictional Top 10**, not live Supabase Rankings. MOGABR is #1 and Gabe M. is #2. MOGABR’s featured valuation and #1 entry both display **$203,718,617,301.68**. The screen also shows the selected profile’s local Personal Best. Browsing it makes no Supabase Rankings reads or score submissions and requires no sign-in or Supabase configuration.
 
-## Optional online Rankings
+Historical live Rankings, score publishing and public founder-name editing are not exposed by the current UI. Existing implementation files and server records remain intact; they are not instructions to enable those features or apply migrations.
 
-Public Rankings reads use the existing `get_billionaire_board` RPC anonymously. Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` with the project URL and public publishable/anon key in each intended build environment. Never use service-role credentials or database passwords. Missing configuration or connectivity does not prevent local gameplay.
+## Separate local games for Guest and accounts
 
-Google or email sign-in is optional and can identify an existing published record. Score publishing and founder-name editing are paused: the previous matching-server-save attribution requirement has not been bypassed. A separately reviewed local-only attribution model is required before publishing resumes.
+Guest and each authenticated Google or email account have separate local games, recovery copies and Personal Best records on the same device. Isolation follows the Supabase user ID, not the email address or sign-in method: two providers linked to the same Supabase account select the same local profile.
 
-For optional authentication, configure the existing Supabase Email/Google providers and approved web redirect URLs. Google provider credentials belong in Supabase, not in the browser bundle. The committed iOS integration uses `com.siliconhustle.game://auth/callback` for email/deep links and the existing native Google integration. No provider configuration was changed for this release. Native sign-in still requires physical-device validation.
+- **Sign in:** select that authenticated account’s local game, or start its own game if it has none. The Guest game is not silently transferred to the account.
+- **Sign out:** return to a fresh Guest game after preserving earlier Guest progress in the Guest recovery archive. The signed-out account’s local game and Personal Best remain separate. Guest Personal Best is retained across games.
+- **Storage or recovery failure:** unsafe replacement is blocked. Sign-out may stop before completion, or show **Guest save recovery** with **Retry Guest Setup** if Guest initialization fails after authentication signs out. Existing snapshots remain available; do not clear app storage to resolve the error.
+- **Legacy games:** assigning a shared historical game to Guest or an account requires an explicit choice. Original shared saves and recovery archives are retained, including Month 42 recovery candidates. Account switching never automatically claims an unassigned legacy game.
+
+Authentication does **not** provide cloud-save synchronization, remote game recovery, or cross-device progress. Signing into the same account on another device does not transfer the game or Personal Best. Existing Supabase gameplay data is neither loaded nor changed. No `game_saves` table setup or database migration is needed for this client.
+
+## Optional Supabase authentication setup
+
+Configure the existing Supabase project’s Email/Google providers and approved authentication redirects for each intended environment. Use only the project URL and public publishable/anon key in the browser build:
+
+```dotenv
+VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY
+```
+
+These values enable optional account authentication, not live Rankings or cloud saves. Missing configuration does not prevent Guest gameplay. Never use service-role credentials or database passwords in the client. Keep provider secrets in Supabase/Google configuration, never in source code or `VITE_` variables, and do not commit `.env.local`.
+
+### Web Google and email sign-in
+
+The web client uses Supabase Google OAuth and email magic links. Both request a redirect to the current page’s origin and pathname. Ensure the intended development, Preview and production return URLs are allowed in Supabase Auth. Configure the Google provider with the appropriate OAuth client and Supabase callback in Google’s settings; do not substitute a client-side secret or change existing working provider settings merely to build the app.
+
+### Native iOS sign-in
+
+The existing native implementation uses the Google Sign-In SDK through the social-login plugin, then authenticates with Supabase using the returned ID token. Preserve the configured iOS and web/server client IDs and nonce handling in `src/AuthGate.tsx`.
+
+Email/deep links use `com.siliconhustle.game://auth/callback`, handled through Capacitor’s App plugin. The committed native URL registrations are:
+
+- `com.siliconhustle.game` for the app callback.
+- `com.googleusercontent.apps.665622953523-143uatg5tp21h14sjnvgnbk8imdkifnt` for the existing reversed Google iOS client ID.
+
+AppDelegate passes Google callbacks to Google Sign-In first and forwards other URLs to Capacitor. Keep the app callback allowed in Supabase Auth and preserve the existing Google iOS client/bundle configuration. URL schemes and OAuth client IDs are public identifiers; private provider credentials and signing material must not enter the repository.
+
+**Native Google sign-in, email magic-link callbacks, sign-out and account switching still require physical-iPhone validation**, including cold starts and local-profile isolation. Committed callback handling and a successful app build do not establish that those flows work on a device. No production authentication settings are changed by this documentation.
 
 ## Local persistence and recovery
 
-The client reads `silicon-hustle-local-v1` first, then historical `silicon-hustle-v04` or `compute-empire-v04` snapshots. It never deletes historical snapshots. Supported older saves receive presentation defaults in memory while preserving financial state and unknown metadata. New progress uses the local-only key.
+Gameplay keys are scoped to Guest or the authenticated account. Within that profile, `silicon-hustle-local-v1` takes priority over compatible `silicon-hustle-v04` and `compute-empire-v04` snapshots. Shared historical snapshots are copied only after explicit assignment, without deleting or overwriting the original shared keys. Existing scoped recovery copies remain available to the save-selection flow.
 
-An incompatible game is held in place, with **Save a Copy** and **Try Again**. Starting fresh is explicit and only proceeds after original snapshots are retained locally. Exported copies contain game data, not authentication tokens. Native download/export needs device testing; retained originals do not depend on a successful external download. Device storage failures block unsafe replacements. Clearing app/browser storage removes the game and its local recovery history; signing into an account does not restore it. No import or synchronization occurs automatically.
+Personal Best persists separately across games, resets and restarts for each profile, including eligible Founder’s Gamble valuations through Month 42. It is a local record, not a verified online score or a cross-device backup.
+
+An incompatible game is held in place, with **Save a Copy** and **Try Again**. Starting fresh is explicit and only proceeds after original snapshots are retained locally. Exported recovery copies contain game data, not authentication tokens. Native recovery export and reinstallation recovery still require device testing; retained originals do not depend on a successful external download. Clearing app/browser storage removes local games and recovery history; signing in cannot restore deleted data. No cloud import or synchronization occurs automatically.
+
+The tested in-place Xcode update preserved existing gameplay progress. That result does not guarantee recovery after uninstalling the app, changing its identity, or clearing storage.
 
 ## Build and validate
 
@@ -26,7 +63,7 @@ An incompatible game is held in place, with **Save a Copy** and **Try Again**. S
 npm install
 npm test
 npm run test:browser
-npm run build -- --mode production
+npm run build
 ```
 
-For iOS, use the committed project and the commands in [README.md](README.md#ios-development). The React/TypeScript persistence and gameplay implementation is shared across web and native iOS. Browser tests use disposable synthetic snapshots and intercepted APIs; they do not inspect production accounts or saves.
+For iOS, follow the existing-project build → `npx cap sync ios` → Xcode workspace workflow in [README.md](README.md#ios-development) and [IOS_SETUP.md](IOS_SETUP.md). Preserve working native signing settings and the installed app. The React/TypeScript gameplay and persistence implementation is shared across web and iOS. Browser regressions use disposable synthetic snapshots and intercepted APIs; they do not establish physical-device authentication success or inspect production accounts and saves.
