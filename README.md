@@ -59,7 +59,7 @@ On mobile, Market appears before the collapsed My Portfolio section. Expand the 
 
 ## Rankings / THE OVERLORD
 
-The **RANKINGS** navigation button opens **THE OVERLORD**, a fictional Coming Soon financial dashboard with a gold crown, dark-green panel and shared desktop/mobile visual identity. **MOGABR** is the permanent Boss of Bosses with an estimated empire valuation of **$999,999,999,999,999.99**. This is satirical presentation, not a verified player entry or a live leaderboard.
+The **RANKINGS** navigation button opens **THE OVERLORD**, a fictional Coming Soon financial dashboard with a gold crown, dark-green panel and shared desktop/mobile visual identity. **MOGABR** is the permanent Boss of Bosses with an estimated empire valuation of **$203,718,617,301.68**. This is satirical presentation, not a verified player entry or a live leaderboard.
 
 The **Top 10** is a fixed fictional list, not a live Supabase leaderboard. **Your Personal Best** is the highest eligible local valuation across games, including Founder’s Gamble through Month 42, kept separately for Guest and each account across new games and app restarts. Existing snapshots and scoped recovery archives can restore an earlier best; unassigned legacy games never count for an account automatically.
 

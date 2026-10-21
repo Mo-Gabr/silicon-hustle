@@ -13,7 +13,7 @@ const {default:Overlord,SYSTEM_NOTICES}=mod.exports;
 const expectedNotices=["NVIDIA has requested permission to manufacture more GPUs.","AGI has submitted its résumé to Mogabr.","Global compute availability is subject to Mogabr's approval.","Competing AI labs have been reclassified as hobby projects.","The world's datacenters have been consolidated under one billing account.","Antitrust regulators have requested a meeting. Their compute allocation is pending."];
 test('THE OVERLORD uses the exact fictional content and approved capitalization',()=>{
  const html=renderToStaticMarkup(React.createElement(Overlord)),text=html.replace(/<[^>]+>/g,' ').replaceAll('&#x27;',"'").replaceAll('&quot;','"').replaceAll('&amp;','&').replace(/\s+/g,' ').trim();
- for(const content of ['SILICON HUSTLE / THE OVERLORD','TOP 10','#001 / BOSS OF BOSSES','CLASSIFIED: GOD-TIER','MOGABR','Founder. Visionary. Owner of Everything.','$999,999,999,999,999.99','ESTIMATED EMPIRE VALUATION','COMPUTE CONTROL: TOTAL','COMPETITORS: OBSOLETE','AI MODEL STATUS: BEYOND AGI','EXIT STRATEGY: BUY THE EXCHANGE',`"He didn't build AGI. AGI applied to work for him."`,"Mogabr controls the silicon supply chain, owns the datacenters, and has somehow trademarked artificial intelligence. NVIDIA has requested additional GPUs. Their request is pending.",'SYSTEM NOTICE','All remaining founders have been classified as pre-revenue.','THE MARKET HAS LEADERS. MOGABR HAS OWNERSHIP.'])assert.ok(text.includes(content),content);
+ for(const content of ['SILICON HUSTLE / THE OVERLORD','TOP 10','#001 / BOSS OF BOSSES','CLASSIFIED: GOD-TIER','MOGABR','Founder. Visionary. Owner of Everything.','$203,718,617,301.68','ESTIMATED EMPIRE VALUATION','COMPUTE CONTROL: TOTAL','COMPETITORS: OBSOLETE','AI MODEL STATUS: BEYOND AGI','EXIT STRATEGY: BUY THE EXCHANGE',`"He didn't build AGI. AGI applied to work for him."`,"Mogabr controls the silicon supply chain, owns the datacenters, and has somehow trademarked artificial intelligence. NVIDIA has requested additional GPUs. Their request is pending.",'SYSTEM NOTICE','All remaining founders have been classified as pre-revenue.','THE MARKET HAS LEADERS. MOGABR HAS OWNERSHIP.'])assert.ok(text.includes(content),content);
  assert.ok(!text.includes('MoGabr'));assert.ok(!text.includes('Replay verified'));assert.ok(html.includes('Fictional Boss of Bosses'));assert.ok(html.includes('aria-live="polite"'));assert.ok(html.includes('1 / 6'));
 });
 test('Rankings displays the exact fixed Top 10 in order',()=>{
@@ -32,6 +32,9 @@ test('Rankings displays the exact fixed Top 10 in order',()=>{
  ];
  const rows=[...html.matchAll(/<li[^>]*>(.*?)<\/li>/gs)].map(match=>match[1]);
  assert.equal(rows.length,10);
+ const featured=html.match(/class="overlord-valuation"><strong>([^<]+)<\/strong>/)[1];
+ assert.equal(featured,'$203,718,617,301.68');
+ assert.ok(rows[0].includes(featured),'Featured MOGABR and #1 must use the same formatted valuation');
  expected.forEach(([name,amount],index)=>{
   assert.ok(rows[index].includes(name),name);
   assert.ok(rows[index].includes(amount),amount);

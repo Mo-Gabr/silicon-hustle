@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- MOGABR’s featured empire valuation now matches the fixed #1 Top 10 entry at $203,718,617,301.68, using the same source value and currency formatter.
+
 - Personal Best now persists across separate games, resets and restarts, isolated for each authenticated account and Guest. Existing scoped snapshots and recovery copies seed the record without claiming unassigned legacy games.
 - Account transitions invalidate stale save callbacks, including returning to the same account. Guest sign-out preserves previous Guest progress and its best; interrupted record writes do not block ordinary gameplay saves.
 - Explicit legacy assignment retains existing recovery entries so archived Month 42 games remain available for the existing selection flow. Original legacy saves and archives remain untouched.
@@ -12,7 +14,7 @@
 
 - THE OVERLORD now follows the supplied financial-dashboard reference: one rounded dark-green panel, gold crown and accents, restrained sans-serif hierarchy, and matching card treatment on desktop and mobile.
 
-- THE OVERLORD’s deliberately fictional empire valuation is now $999,999,999,999,999.99, independent of gameplay and leaderboard records.
+- THE OVERLORD’s fictional empire valuation uses the fixed MOGABR ranking value, independent of gameplay and live leaderboard records.
 
 - The RANKINGS destination is now THE OVERLORD, a fictional Coming Soon terminal starring MOGABR as the permanent Boss of Bosses. Active leaderboard/provider observation is disconnected; existing Rankings code, backend data, authentication, gameplay and local saves are unchanged.
 

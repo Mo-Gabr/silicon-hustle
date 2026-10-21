@@ -271,7 +271,8 @@ test('offline browser: local gameplay parity, read-only Rankings and Founders Ga
     assert.equal(await evaluate(`document.getElementById('overlord-title').textContent`),'MOGABR');
     assert.equal(await evaluate(`document.querySelector('.overlord-heading p').getClientRects().length>0`),true,'Primary heading must remain visible under mobile header rules');
     assert.ok(await evaluate(`document.querySelector('.overlord').innerText.includes('SILICON HUSTLE / THE OVERLORD')`));
-    assert.equal(await evaluate(`document.querySelector('.overlord-valuation strong').textContent`),'$999,999,999,999,999.99');
+    assert.equal(await evaluate(`document.querySelector('.overlord-valuation strong').textContent`),'$203,718,617,301.68');
+    assert.equal(await evaluate(`document.querySelector('.overlord-rankings li:first-child .overlord-score').textContent`),'$203,718,617,301.68');
     assert.ok(await evaluate(`(()=>{const e=document.querySelector('.overlord-valuation strong'),r=document.createRange();r.selectNodeContents(e);const box=r.getBoundingClientRect(),container=e.getBoundingClientRect();return e.scrollWidth<=e.clientWidth+1&&box.left>=container.left-1&&box.right<=container.right+1&&box.height<=parseFloat(getComputedStyle(e).lineHeight)+1;})()`),'The entire fictional valuation fits on one line without clipping');
     assert.ok(await evaluate(`document.querySelector('.overlord-coming').textContent==='TOP 10'`));
     assert.equal(await evaluate(`!!document.querySelector('.board-refresh')||!!document.querySelector('.board-publish')||!!document.querySelector('.board-rankings')`),false);

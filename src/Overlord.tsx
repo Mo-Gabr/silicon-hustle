@@ -25,7 +25,7 @@ export default function Overlord({game,currentValuation,savedBest=null}:{game?:u
    <div className="overlord-classification"><span>#001 / BOSS OF BOSSES</span><span>CLASSIFIED: GOD-TIER</span></div>
    <h2 id="overlord-title">MOGABR</h2>
    <p className="overlord-byline">Founder. Visionary. Owner of Everything.</p>
-   <div className="overlord-valuation"><strong>$999,999,999,999,999.99</strong><span>ESTIMATED EMPIRE VALUATION</span></div>
+   <div className="overlord-valuation"><strong>{rankingMoney(FIXED_RANKINGS[0].valuation)}</strong><span>ESTIMATED EMPIRE VALUATION</span></div>
    <dl className="overlord-metrics">
     <div><dt>COMPUTE CONTROL:</dt><dd>TOTAL</dd></div>
     <div><dt>COMPETITORS:</dt><dd>OBSOLETE</dd></div>
