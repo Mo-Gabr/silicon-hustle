@@ -12,13 +12,17 @@ Start with **$5M cash** and a **$25M company valuation**. Trade chips, grow your
 
 ### Current status
 
-- **iOS:** Successfully built and tested on a physical iPhone.
-- **Distribution:** Ad Hoc IPA exported for external testing. No TestFlight or App Store release yet.
-- **Save protection:** An in-place iPhone update successfully retained existing progress. Reinstallation and recovery remain separate validation tasks.
-- **Rankings:** THE OVERLORD is a fictional placeholder. Live competitive rankings are not released.
-- **Development branch:** `ios-testing`.
+- **Application version:** `0.9.0`.
+- **Latest approved game commit:** `97005c2e7f6bcee0d53f991a30161e44b70624df`.
+- **Validation:** 162/162 automated tests and the production build passed on MacBook Air; Capacitor iOS synchronization succeeded.
+- **iOS:** The game launched successfully on a physical iPhone. An in-place Xcode update retained existing gameplay progress.
+- **Distribution:** Ad Hoc IPA archive/export completed for external testing. External tester installation and gameplay are not yet confirmed. No TestFlight or App Store release.
+- **Rankings:** Fixed fictional Top 10 with MOGABR at #1; both its featured valuation and #1 entry display **$203,718,617,301.68**. Live competitive rankings are not released.
+- **Current Mac Mini development branch:** `codex/account-saves-finish`; this is the current working branch, not a designation of the permanent production branch.
+- **Pending device checks:** Native Google/email authentication, account switching, and recovery after reinstallation remain unverified on a physical iPhone.
 
-For native build instructions, see [IOS_SETUP.md](IOS_SETUP.md).
+For the matching two-Mac build, signing, physical-device testing, and Ad Hoc distribution workflow, see [IOS_SETUP.md](IOS_SETUP.md).
+
 ## Gameplay
 
 - Buy and sell simulated AI hardware from NVIDIA, AMD, and Intel.
@@ -59,19 +63,23 @@ On mobile, Market appears before the collapsed My Portfolio section. Expand the 
 
 ## Rankings / THE OVERLORD
 
-The **RANKINGS** navigation button opens **THE OVERLORD**, a fictional Coming Soon financial dashboard with a gold crown, dark-green panel and shared desktop/mobile visual identity. **MOGABR** is the permanent Boss of Bosses with an estimated empire valuation of **$999,999,999,999,999.99**. This is satirical presentation, not a verified player entry or a live leaderboard.
+The **RANKINGS** navigation button opens **THE OVERLORD**, a fictional financial dashboard with a gold crown, dark-green panel and shared desktop/mobile visual identity. **MOGABR** is the permanent Boss of Bosses with an estimated empire valuation of **$203,718,617,301.68**. This is satirical presentation, not a verified player entry or a live leaderboard.
+
+The **Top 10** is a fixed fictional list, not a live Supabase leaderboard. **Your Personal Best** is the highest eligible local valuation across games, including Founder’s Gamble through Month 42, kept separately for Guest and each account across new games and app restarts. Existing snapshots and scoped recovery archives can restore an earlier best; unassigned legacy games never count for an account automatically.
 
 Cycle six system notices with **Next Notice**. The page works offline without Supabase configuration or sign-in, makes no leaderboard requests or score submissions, and does not write game or account storage. Existing Rankings implementation files, published records and founder names are retained unchanged; live browsing, publishing and name editing are not exposed by this page.
 
 ## One device, one game
 
-Play without an account, Supabase configuration, or connectivity. A new game is saved immediately; subsequent actions save automatically, and launching the app resumes the local game. There is no save-source picker, automatic import, or synchronization between devices. Signing in or out does not change the game.
+Play without an account, Supabase configuration, or connectivity. A new game is saved immediately; subsequent actions save automatically, and launching the app resumes the local game. There is no save-source picker, automatic import, or synchronization between devices. Guest and each authenticated account have separate games stored only on this device. Signing in selects that account’s game; signing out starts a fresh Guest game after preserving earlier Guest progress in its recovery archive. Shared legacy games are copied only after an explicit ownership choice, and original keys are retained.
 
-Supported historical snapshots in `silicon-hustle-v04` and `compute-empire-v04` are read without rewriting them on launch. New progress is stored in `silicon-hustle-local-v1`; historical keys are never deleted or overwritten. When both exist, the local-only game is active. Presentation defaults can be supplied in memory, but money, completion state, and achievements are never fabricated. Returning to an older client may show the older historical snapshot rather than recent local-only progress.
+After explicit assignment, supported historical snapshots in `silicon-hustle-v04` and `compute-empire-v04` are read within the chosen profile without rewriting the original shared keys. New progress uses `silicon-hustle-local-v1` inside that profile’s account-scoped namespace; historical keys are never deleted or overwritten. When both exist, the local-only game is active. Presentation defaults can be supplied in memory, but money, completion state, and achievements are never fabricated. Returning to an older client may show the older historical snapshot rather than recent local-only progress.
+
+Personal Best is local device data, not a verified online result or cross-device backup. Ordinary gameplay saves continue if optional record storage is unavailable; a reset that cannot preserve the outgoing record is stopped. Interrupted record updates can be recovered from retained snapshots, but clearing app storage removes local records too.
 
 An incompatible game blocks play instead of silently resetting. **Save a Copy** and **Try Again** offer a simple recovery path. An explicit fresh start first preserves original snapshots locally; failure to preserve them blocks the replacement. Explicit New Game resets also retain the previous snapshot. No automatic recovery imports are performed. Storage failures retain the previous game and show an error. Recovery copies consume device storage and are not automatically pruned.
 
-Clearing browser/app storage or deleting the installed app can remove the game and recovery copies. Use one active window, keep exported copies private, and do not rely on an account as a backup. Existing remote data is neither downloaded, changed, nor deleted by this client. Native export and persistence across installation/update scenarios still need physical-iPhone validation.
+Clearing browser/app storage or deleting the installed app can remove the game and recovery copies. Use one active window, keep exported copies private, and do not rely on an account as a backup. Existing remote data is neither downloaded, changed, nor deleted by this client. The tested in-place Xcode update preserved gameplay progress. Recovery exports, reinstallation recovery, and other update/device combinations still require validation; an exported Ad Hoc IPA is not a backup of saved games.
 
 | Feature | Supabase requirements |
 | --- | --- |
@@ -93,6 +101,13 @@ The package version is **0.9.0**.
 **Release status:** iOS development and Ad Hoc testing. No App Store or TestFlight release yet.
 
 For native setup, signing, and distribution instructions, see [IOS_SETUP.md](IOS_SETUP.md).
+
+## Development workflow
+
+- **Mac Mini:** Codex development, automated tests, production builds, documentation, and approved Git commits/pushes. Work currently uses `codex/account-saves-finish` in `/Users/gabe-visla-macmini/Documents/silicon-hustle-the-overlord`.
+- **MacBook Air:** Pull approved commits into `~/Projects/silicon-hustle` after reviewing local changes, then build, synchronize Capacitor, use Xcode for physical-iPhone testing, and archive/export an Ad Hoc IPA. Preserve local native files and signing settings; do not reset or overwrite them to synchronize code.
+
+Confirm the approved commit before building. Development validation and an IPA export do not establish successful external tester installation, native authentication, or a production release.
 
 ## Local development
 
@@ -140,24 +155,19 @@ The build type-checks TypeScript and generates `dist/`; `preview` serves that bu
 
 The native **`ios/` project is already committed**. Use the existing workspace; do not add the iOS platform again.
 
-On a Mac, install full Xcode with the required iOS SDK/simulator, CocoaPods, and the npm dependencies above. Build the web assets, copy them into the existing native project, and open its workspace:
+On the MacBook Air, use the existing checkout, Xcode/iOS SDK, CocoaPods, and npm dependencies. The verified workflow is:
 
 ```bash
-npm run build -- --mode production
-npx cap copy ios
-```
-
-On a fresh checkout, install the project's native pods:
-
-```bash
-(cd ios/App && pod install)
-```
-
-```bash
+npm run build
+npx cap sync ios
 open ios/App/App.xcworkspace
 ```
 
-In Xcode, select the App scheme, configure your development signing team for a physical device, and choose an iPhone simulator or connected iPhone. Build and run from Xcode. After changing web code, repeat the production-mode build and `npx cap copy ios` before rebuilding the native app. Production mode selects Vite's build configuration; it does not deploy anything.
+`npm run build` type-checks and creates the production web build. `npx cap sync ios` copies it into the existing native project and updates native dependencies. Synchronization can change native files: review its diff and preserve the MacBook Air's signing configuration rather than resetting those files. Do not run `npx cap add ios` again.
+
+In Xcode, use the existing App scheme, signing team, and bundle identifier with the connected iPhone. Build and run as an in-place update; do not uninstall the existing app or clear its data. This procedure successfully launched the game and retained existing gameplay progress on the tested iPhone. Repeat the build/sync/workspace steps for later approved web changes. Building and syncing locally do not deploy to Vercel or publish an iOS release.
+
+Archive/export for Ad Hoc external testing has completed. Installation and gameplay on an external tester's device remain unconfirmed.
 
 See the [iOS validation checklist](IOS_SETUP.md#release-checklist) and [trading panel behavior](INTERACTIVE_CHIP_TRADING.md) for additional development context. The commands above use the existing native project. For the complete iOS-first workflow, including physical-device testing, Ad Hoc IPA distribution, signing, and save protection, see IOS_SETUP.md.
 
@@ -165,13 +175,13 @@ See the [iOS validation checklist](IOS_SETUP.md#release-checklist) and [trading 
 
 - **Rankings:** Live competitive Rankings are not available. MOGABR is fictional, not a verified player score. Historical Rankings data remains separate from the active placeholder.
 - **Local saves:** Games do not synchronize between devices. One in-place iPhone update successfully preserved progress, but reinstalling the app, recovering deleted saves, and transferring progress between devices remain unverified.
-- **Authentication:** Native iOS sign-in and OAuth callbacks are not yet validated. Gameplay does not require an account.
+- **Authentication:** Native Google sign-in, email magic-link callbacks, and account switching still require physical-iPhone verification. Gameplay does not require an account.
 - **Historical market data:** Older saves without a reliable previous-month price display **Unavailable** until a subsequent month transition establishes a baseline.
-- **iOS distribution:** The app has been tested through Xcode, and an Ad Hoc IPA has been exported. External tester installation remains to be confirmed. There is no TestFlight or App Store release.
+- **iOS distribution:** The app has been tested through Xcode, and an Ad Hoc IPA has been exported. External tester installation and gameplay remain to be confirmed. There is no TestFlight or App Store release.
 
 
 ## Local save recovery after the diagnostic build
 
 Normal gameplay and local autosave are restored. If a valid historical Month 42 game is hidden by an earlier local game, a one-time **Choose Your Game** screen recommends Month 42 and lets you keep either game. Nothing is replaced until you choose. Both original snapshots are retained in the local recovery archive before the selected game becomes active. The choice is remembered; subsequent launches resume normally. A completed Month 42 run stays completed, with its result and the normal New Game option preserved.
 
-Install over the existing iPhone app using the same bundle identifier; do not uninstall or clear app data. Rebuild with `npm run build -- --mode production`, run `npx cap copy ios`, then run the existing app from Xcode. No sign-in, cloud synchronization, or diagnostic screen is required to play.
+Install over the existing iPhone app using the same bundle identifier; do not uninstall or clear app data. Rebuild with `npm run build`, run `npx cap sync ios`, open `ios/App/App.xcworkspace`, and run the existing app from Xcode after reviewing native changes. No sign-in, cloud synchronization, or diagnostic screen is required to play.

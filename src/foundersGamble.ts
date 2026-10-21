@@ -207,6 +207,37 @@ export function standardRankingValue(raw: unknown, current: number): number | nu
     const value = Math.round(Math.max(current, ...(s.reports || []).map(r => r.valuation)));
     return Number.isSafeInteger(value) && value >= 0 && value <= 1e12 ? value : null;
 }
+/** Highest eligible valuation in the current run, including the extension. */
+export function personalBestValue(raw: unknown, current: number): number | null {
+    if (!raw || typeof raw !== 'object')
+        return null;
+    const s = raw as Company;
+    if (!Number.isInteger(s.month) || s.month < 1 || s.month > ENTERPRISE_BALANCE.finalMonth || !Number.isFinite(current) || current < 0 || (s.reports !== undefined && !Array.isArray(s.reports)))
+        return null;
+
+    // Reuse standard-score validation for legacy and extension snapshots.
+    const standard = standardRankingValue(s, current);
+    if (standard === null)
+        return null;
+
+    const values = [standard, current];
+    for (const report of s.reports || []) {
+        if (!report || !Number.isInteger(report.month) || report.month < 1 || report.month > s.month || !Number.isFinite(report.valuation) || report.valuation < 0)
+            return null;
+        values.push(report.valuation);
+    }
+
+    if (s.gamble?.decision === 'extend' && s.gamble.extensionOutcome) {
+        const outcome = s.gamble.extensionOutcome;
+        if (!Number.isInteger(outcome.month) || outcome.month < 31 || outcome.month > 42 || outcome.month > s.month || !Number.isFinite(outcome.valuation) || outcome.valuation < 0)
+            return null;
+        values.push(outcome.valuation);
+    }
+
+    const best = Math.round(Math.max(...values));
+    return Number.isSafeInteger(best) && best <= 1e12 ? best : null;
+}
+
 export function losingStory(value: number, month: number) {
     if (value < 25000000)
         return { title: 'THE INVESTORS WANT THEIR MONEY BACK.', body: "The good news? You disrupted an industry. The bad news? It was your own balance sheet. Your CFO has stopped answering calls, and the board has discovered the phrase 'fiduciary responsibility.'" };

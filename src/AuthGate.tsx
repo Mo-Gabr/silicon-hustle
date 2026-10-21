@@ -7,6 +7,8 @@ import {SocialLogin, type GoogleLoginResponseOnline} from '@capgo/capacitor-soci
 import './auth.css';
 import {rankingsConfiguration} from './rankingsApi';
 import {readLocal,GAME_KEYS} from './localSaves';
+import {accountId,accountKey,accountStore,prepareGuestSignOut} from './accountSaves';
+import {writeLocal} from './localSaves';
 import {localFounderName} from './gameProfile';
 
 const url=import.meta.env.VITE_SUPABASE_URL as string|undefined;
@@ -45,25 +47,40 @@ async function completeNativeLogin(link:string){
  throw new Error('Login link did not contain a session. Please try signing in again.');
 }
 
-export default function AuthGate({children}:{children:React.ReactNode}){
- const [profileName,setProfileName]=useState(()=>localFounderName(readLocal(localStorage).state));
+export default function AuthGate({children,createGuestGame}:{children:(userId:string|null,ready:boolean)=>React.ReactNode,createGuestGame:()=>unknown}){
+
+ const [session,setSession]=useState<Session|null>(null);
+ const activeId=accountId(session?.user.id);
+ const [profileName,setProfileName]=useState('');
  useEffect(()=>{
-  const refresh=()=>setProfileName(localFounderName(readLocal(localStorage).state));
-  const storage=(event:StorageEvent)=>{if(event.key===null||GAME_KEYS.includes(event.key))refresh();};
+  const store=accountStore(localStorage,activeId);
+  const refresh=()=>setProfileName(localFounderName(readLocal(store).state));
+  const storage=(event:StorageEvent)=>{
+   if(event.key===null||GAME_KEYS.some(key=>event.key===accountKey(activeId,key)))refresh();
+  };
+  refresh();
   window.addEventListener('silicon-hustle-save',refresh);
   window.addEventListener('silicon-hustle-reload',refresh);
   window.addEventListener('storage',storage);
-  return ()=>{window.removeEventListener('silicon-hustle-save',refresh);window.removeEventListener('silicon-hustle-reload',refresh);window.removeEventListener('storage',storage);};
- },[]);
- const [session,setSession]=useState<Session|null>(null);
+  return ()=>{
+   window.removeEventListener('silicon-hustle-save',refresh);
+   window.removeEventListener('silicon-hustle-reload',refresh);
+   window.removeEventListener('storage',storage);
+  };
+ },[activeId]);
+ const [authReady,setAuthReady]=useState(!supabase);
  const [busy,setBusy]=useState(false);
  const [notice,setNotice]=useState('');
  const [email,setEmail]=useState('');
  const [showAuth,setShowAuth]=useState(false);
+ const [signingOut,setSigningOut]=useState(false);
+ const [guestResetPending,setGuestResetPending]=useState(false);
+ const [guestResetError,setGuestResetError]=useState('');
+
  useEffect(()=>{
   if(!supabase){return;}
-  supabase.auth.getSession().then(({data,error})=>{if(error)setNotice(error.message);setSession(data.session);}).catch(()=>setNotice('Rankings sign-in is unavailable. Your game works on this device.'));
-  const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,next)=>{setSession(next);});
+  supabase.auth.getSession().then(({data,error})=>{if(error)setNotice(error.message);setSession(data.session);setAuthReady(true);}).catch(()=>{setNotice('Sign-in is unavailable. Your saved games remain on this device.');setAuthReady(true);});
+  const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,next)=>{setSession(next);setAuthReady(true);});
   let listener: { remove: () => Promise<void> } | undefined;
 let cancelled = false;
 
@@ -104,6 +121,32 @@ return () => {
   subscription.unsubscribe();
 };
  },[]);
+ async function signOutAccount(){
+  if(!supabase||signingOut)return;
+  setBusy(true);
+  setSigningOut(true);
+  setNotice('');
+  try{
+   const prepared=prepareGuestSignOut(localStorage,createGuestGame());
+   const {error}=await supabase.auth.signOut();
+   if(error)throw error;
+   setGuestResetPending(true);
+   try{
+    writeLocal(prepared.guest,prepared.freshGame,prepared.stamp,{fresh:true});
+    setGuestResetPending(false);
+    setGuestResetError('');
+    setShowAuth(false);
+   }catch(error){
+    setGuestResetError(error instanceof Error?error.message:'Guest save could not be initialized.');
+    throw error;
+   }
+  }catch(error){
+   setNotice(error instanceof Error?error.message:'Sign-out could not be completed safely.');
+  }finally{
+   setSigningOut(false);
+   setBusy(false);
+  }
+ }
  async function signInGoogle(){
   if(!supabase){setNotice('Google sign-in will be available after Supabase is configured.');return;}
   setBusy(true);setNotice('');
@@ -140,7 +183,18 @@ return () => {
  }
  return <>
   <div className="sh-account"><span data-testid="local-founder-name">{profileName}</span><button onClick={()=>{setNotice('');setShowAuth(true);}}>ACCOUNT</button></div>
-  {children}
-  {showAuth&&<div className="sh-gate"><section className="sh-dialog" role="dialog" aria-modal="true" aria-label="Founder account"><button className="sh-close" onClick={()=>setShowAuth(false)} aria-label="Close">✕</button><h2>{session?'YOUR ACCOUNT':'RANKINGS SIGN IN'}</h2>{session?<><p>Signed in as {session.user.email||'founder'}.</p><p>Your game stays on this device. This account is only for optional Rankings.</p><button className="sh-primary" onClick={()=>setShowAuth(false)}>CONTINUE PLAYING</button><button className="sh-link" onClick={async()=>{await supabase?.auth.signOut();setShowAuth(false);}}>SIGN OUT</button></>:<><p>Sign-in is optional. Play and save on this device without an account.</p><button className="sh-google" onClick={signInGoogle} disabled={busy||!supabase}>CONTINUE WITH GOOGLE</button><div className="sh-divider">OR EMAIL A MAGIC LINK</div><form onSubmit={signInEmail}><label htmlFor="sh-email">EMAIL ADDRESS</label><input id="sh-email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required/><button className="sh-primary" disabled={busy||!supabase}>EMAIL ME A SIGN-IN LINK</button></form><button className="sh-link" onClick={()=>setShowAuth(false)}>KEEP PLAYING</button></>}{notice&&<p role="status">{notice}</p>}</section></div>}
+  {children(session?.user.id??null,authReady&&!signingOut&&!guestResetPending)}
+ {guestResetPending&&<div className="sh-gate"><section className="sh-dialog" role="alertdialog" aria-modal="true" aria-label="Guest save recovery"><h2>GUEST SAVE NEEDS ATTENTION</h2><p>{guestResetError||'Preparing your Guest game...'}</p><button className="sh-primary" disabled={busy} onClick={()=>{
+  try{
+   const prepared=prepareGuestSignOut(localStorage,createGuestGame());
+   writeLocal(prepared.guest,prepared.freshGame,prepared.stamp,{fresh:true});
+   setGuestResetPending(false);
+   setGuestResetError('');
+   setShowAuth(false);
+  }catch(error){
+   setGuestResetError(error instanceof Error?error.message:'Guest save could not be initialized.');
+  }
+ }}>RETRY GUEST SETUP</button></section></div>}
+  {showAuth&&<div className="sh-gate"><section className="sh-dialog" role="dialog" aria-modal="true" aria-label="Founder account"><button className="sh-close" onClick={()=>setShowAuth(false)} aria-label="Close">✕</button><h2>{session?'YOUR ACCOUNT' :'SIGN IN'}</h2>{session?<><p>Signed in as {session.user.email||'founder'}.</p><p>Your game is saved locally and kept separate from other accounts on this device.</p><button className="sh-primary" onClick={()=>setShowAuth(false)}>CONTINUE PLAYING</button><button className="sh-link" onClick={signOutAccount} disabled={busy}>SIGN OUT</button></>:<><p>Sign-in is optional. Each account and Guest has a separate local game.</p><button className="sh-google" onClick={signInGoogle} disabled={busy||!supabase}>CONTINUE WITH GOOGLE</button><div className="sh-divider">OR EMAIL A MAGIC LINK</div><form onSubmit={signInEmail}><label htmlFor="sh-email">EMAIL ADDRESS</label><input id="sh-email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required/><button className="sh-primary" disabled={busy||!supabase}>EMAIL ME A SIGN-IN LINK</button></form><button className="sh-link" onClick={()=>setShowAuth(false)}>KEEP PLAYING</button></>}{notice&&<p role="status">{notice}</p>}</section></div>}
  </>;
 }

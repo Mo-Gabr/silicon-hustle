@@ -32,3 +32,24 @@
 .overlord-system button:focus-visible{outline:2px solid #f0d69b;outline-offset:3px}
 .overlord-footer{margin:10px 0 0;color:#e0c274;text-align:center;font-size:12px;font-weight:400;line-height:1.5;letter-spacing:0;overflow-wrap:anywhere}
 @media(max-width:480px){.overlord{margin-top:14px;padding:16px;border-radius:17px}.overlord .overlord-heading{gap:10px;padding-bottom:18px;margin-bottom:20px}.overlord .overlord-heading p{font-size:11px;gap:6px}.overlord-coming{font-size:11px}.overlord-classification{font-size:11px}.overlord-metrics{gap:12px}.overlord-metrics dd{font-size:13px}.overlord-valuation>span{font-size:12px}.overlord-footer{font-size:11px}}
+
+/* Fixed Top 10 rankings */
+.overlord-rankings{margin-top:24px;padding-top:20px;border-top:1px solid #47604c}
+.overlord-rankings h3{margin:0 0 14px;color:#f0ca74;font-size:16px;font-weight:600;letter-spacing:.04em}
+.overlord-rankings ol{list-style:none;margin:0;padding:0}
+.overlord-rankings li{display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:10px;min-width:0;padding:12px 0;border-bottom:1px solid #3e5946}
+.overlord-rank{color:#dfba65;font-size:13px;font-variant-numeric:tabular-nums}
+.overlord-founder{min-width:0;color:#e5e9df;font-size:14px;font-weight:600;overflow-wrap:anywhere}
+.overlord-score{color:#ebc67b;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.overlord-rankings li:first-child .overlord-founder,.overlord-rankings li:first-child .overlord-score{color:#ffe7ae}
+@media(max-width:480px){
+ .overlord-rankings li{grid-template-columns:30px minmax(0,1fr);gap:4px 8px}
+ .overlord-rank{grid-row:span 2}
+ .overlord-founder{font-size:13px}
+ .overlord-score{grid-column:2;text-align:left;font-size:12px}
+}
+
+/* Player's personal best, separate from the fixed Top 10 */
+.overlord-personal{margin-top:20px;padding:18px;border:1px solid #47604c;border-radius:10px;background:#203f31}
+.overlord-personal h3{margin:0 0 8px;color:#b6c4b9;font-size:12px;font-weight:600;letter-spacing:.04em}
+.overlord-personal strong{display:block;color:#ebc67b;font-size:clamp(18px,5vw,25px);font-weight:600;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}

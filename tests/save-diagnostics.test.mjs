@@ -17,5 +17,5 @@ test('unsupported snapshots show available month without pretending valuation is
 test('storage and archive errors remain sanitized and never imply successful selection',()=>{const rows=inspectSaves({getItem(){throw Error('PRIVATE');}});assert.ok(rows.every(r=>!r.selected));assert.ok(!diagnosticSummary(rows).includes('PRIVATE'));assert.match(inspectSaves(reader({[keys[3]]:'bad'}))[3].validation,/Unreadable/);});
 test('no diagnostic startup pause or account entry remains in the playable build',()=>{
  const main=readFileSync('src/main.tsx','utf8'),auth=readFileSync('src/AuthGate.tsx','utf8');
- assert.ok(!main.includes('SAVE_DIAGNOSTIC_BUILD'));assert.ok(!main.includes('SAVE INSPECTION BUILD'));assert.ok(!auth.includes('SaveDiagnostics'));assert.ok(main.includes('<App key={version} resumeDashboard={resumeDashboard}/>'));
+ assert.ok(!main.includes('SAVE_DIAGNOSTIC_BUILD'));assert.ok(!main.includes('SAVE INSPECTION BUILD'));assert.ok(!auth.includes('SaveDiagnostics'));assert.ok(main.includes('<App key={version} store={store} resumeDashboard={resumeDashboard}/>'));
 });
