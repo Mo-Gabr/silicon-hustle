@@ -8,6 +8,8 @@ Entries include historical capabilities as well as later changes and removals. E
 
 ### Added
 
+- Compact enterprise progression path, explicit scheduled action/outcome and Operate/reset explanation, plus best-case insufficient-month warnings.
+
 - Six manually cycled system notices with an accessible Next Notice button and counter. THE OVERLORD supports mobile widths and enlarged text without network requests or persistent state.
 - One-device local autosave and resume, including Founder’s Gamble decisions, frozen Month 30 results and achievements, with compatible historical snapshot loading.
 - A compact incompatible-game recovery screen, preserved originals before explicit fresh starts, and storage/stale-window safeguards that keep the previous game on failure.
@@ -25,6 +27,8 @@ Entries include historical capabilities as well as later changes and removals. E
 
 ### Changed
 
+- Major Partner now requires reliability 4 rather than 5; contract prerequisites, costs, success probabilities and the Month 30/42 gates remain unchanged. No reliability bonus for successful contracts is added.
+
 - THE OVERLORD now follows the supplied financial-dashboard reference: one rounded dark-green panel, gold crown and accents, restrained sans-serif hierarchy, and matching card treatment on desktop and mobile.
 - THE OVERLORD’s fictional empire valuation uses the fixed MOGABR ranking value, independent of gameplay and live leaderboard records.
 - The RANKINGS destination is now THE OVERLORD, a fictional Coming Soon terminal starring MOGABR as the permanent Boss of Bosses. Active leaderboard/provider observation is disconnected; existing Rankings code, backend data, authentication, gameplay and local saves are unchanged.
@@ -38,6 +42,8 @@ Entries include historical capabilities as well as later changes and removals. E
 - Documented the current Mac Mini development workflow on `codex/account-saves-finish` and the MacBook Air build, Capacitor synchronization, Xcode testing and IPA export workflow. At approved game commit `97005c2e7f6bcee0d53f991a30161e44b70624df` (application `0.9.0`), 162/162 automated tests and the production build passed on MacBook Air, and Capacitor iOS synchronization succeeded. Native Google/email authentication and account switching remain physical-iPhone validation tasks.
 
 ### Fixed
+
+- Enterprise locked-action copy now shows every unmet requirement instead of hiding cash or capacity blockers behind contract/reliability progress.
 
 - MOGABR’s featured empire valuation now matches the fixed #1 Top 10 entry at $203,718,617,301.68, using the same source value and currency formatter.
 - Personal Best now persists across separate games, resets and restarts, isolated for each authenticated account and Guest. Existing scoped snapshots and recovery copies seed the record without claiming unassigned legacy games.

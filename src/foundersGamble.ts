@@ -1,7 +1,7 @@
 /** Shared web/iOS rules. Fictional balance values; never used by Months 1–30. */
 export const ENTERPRISE_BALANCE = {
     standardMonth: 30, finalMonth: 42, target: 100000000, unicorn: 1000000000, mogabr: 2000000000,
-    maxCapacity: 12, baseCapacity: 2, labsPerSlot: 4, addedCapacity: 2, maxReliability: 5, enterpriseReliability: 3, pilotsRequired: 2, strategicReliability: 5, enterprisesRequired: 2, discountFollowingMonths: 1,
+    maxCapacity: 12, baseCapacity: 2, labsPerSlot: 4, addedCapacity: 2, maxReliability: 5, enterpriseReliability: 3, pilotsRequired: 2, strategicReliability: 4, enterprisesRequired: 2, discountFollowingMonths: 1,
     slotOverhead: 200000, reliabilityOverhead: 150000, variableCost: .4,
     incidentBilling: .8, incidentPremium: .75,
     multiples: [3, 4, 6, 7.5, 9], incidentChance: [.18, .12, .08, .04, .02],

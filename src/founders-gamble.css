@@ -66,3 +66,13 @@ body::after{bottom:0;height:var(--sh-safe-bottom)}
 @media(max-width:650px){.enterprise-metrics{margin:8px 0}.enterprise-focuses label{padding-top:6px;padding-bottom:6px}}
 
 .enterprise .enterprise-intro{font-size:.75rem;line-height:1.45;color:#a7bbb5;margin:0 0 10px;overflow-wrap:anywhere}
+
+/* Compact shared enterprise path and explicit monthly plan; no new modal. */
+.enterprise-path{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;list-style:none;margin:10px 0;padding:0}
+.enterprise-path li{min-width:0;border-left:2px solid #416054;padding:4px 6px;background:#152b24;overflow-wrap:anywhere}
+.enterprise-path b,.enterprise-path small{display:block;font-size:.6875rem;line-height:1.45}
+.enterprise-path b{color:#77c8a2}.enterprise-path small{color:#a7bbb5}
+.enterprise-plan{border-left:3px solid #d8b978;padding:6px 9px;margin:10px 0;overflow-wrap:anywhere;line-height:1.45}
+.enterprise-plan b{font-size:.75rem;color:#d9e8e2}.enterprise-plan p{margin:4px 0;font-size:.6875rem}.enterprise-plan small{color:#a7bbb5;font-size:.6875rem}
+.enterprise-plan .focus-block{color:#d8b978}
+@media(max-width:360px){.enterprise-path{grid-template-columns:1fr}.enterprise-path li{display:flex;gap:4px 8px;flex-wrap:wrap;align-items:baseline}}

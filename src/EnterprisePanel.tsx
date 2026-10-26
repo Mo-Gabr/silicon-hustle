@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { ENTERPRISE_BALANCE as B, capacity, recurringRevenue, operatingFigures, premium, type Company, type Focus } from './foundersGamble';
 import './founders-gamble.css';
-import {enterpriseActions,clientSlots,showEnterpriseIntro} from './enterprisePresentation';
+import {enterpriseActions,enterpriseProgress,clientSlots,showEnterpriseIntro} from './enterprisePresentation';
 const dollars = (n: number) => '$' + Math.round(n).toLocaleString('en-US');
 export const companyMoney = (n: number) => n >= 1e9 ? '$' + (n / 1e9).toFixed(2) + 'B' : n >= 1e6 ? '$' + (n / 1e6).toFixed(2) + 'M' : dollars(n);
 /** Native dialog provides focus trapping, Escape handling and focus restoration in WebKit/Chromium. */
@@ -70,6 +70,8 @@ export default function EnterprisePanel({ company, onFocus, blocked }: {
     const last = e.ledger.at(-1);
     const focus = e.focus;
     const focuses=enterpriseActions(company);
+    const scheduled = focuses.find(item=>item.id===focus)!;
+    const progress = enterpriseProgress(company);
     const investment = B.focuses[focus].cost;
     const net = f.profit + company.labs * 270000;
     const projected = { ...e, contracts: [...e.contracts], reliability: e.reliability, purchasedSlots: e.purchasedSlots };
@@ -89,13 +91,26 @@ export default function EnterprisePanel({ company, onFocus, blocked }: {
         <div><small>CLIENT SLOTS</small><b>{clientSlots(company)}</b></div>
         <div><small>RELIABILITY</small><b>{e.reliability} / {B.maxReliability}</b></div>
       </div>
+      <ol className="enterprise-path" aria-label="Enterprise progression">
+        {progress.map(step=><li key={step.id}>
+          <b>{step.complete?'✓ ':''}{step.title}</b><small>{step.count}/{step.target} signed</small>
+          {!step.complete&&<small>{step.requirements.filter(r=>['pilots','clients','reliability'].includes(r.key)).map(r=>`${r.met?'✓':'○'} ${r.text}`).join(' · ')}</small>}
+        </li>)}
+      </ol>
+      {!company.ended&&<div className="enterprise-plan" role="status" aria-label="Scheduled enterprise action">
+        <b>NEXT MONTH · {scheduled.title}</b>
+        <p className={focus==='operate'?'focus-block':undefined}>{focus==='operate'?'Spend $0 · No clients or upgrades. Choose a growth action.':scheduled.description}</p>
+        {scheduled.lockedCopy&&<p className="focus-block">Plan blocked: {scheduled.lockedCopy}</p>}
+        {blocked&&<p className="focus-block">Resolve the boardroom event before this plan can settle.</p>}
+        <small>After NEXT MONTH, focus resets to OPERATE.</small>
+      </div>}
       <fieldset disabled={blocked||company.ended}><legend>NEXT MONTH’S FOCUS</legend>
         <div className="enterprise-focuses">{focuses.map(item=>{
 
           return <label key={item.id} className={focus===item.id?'selected-focus':''}>
             <input type="radio" name="enterprise-focus" value={item.id} checked={focus===item.id} disabled={item.disabled} onChange={()=>onFocus(item.id)}/>
             <span className="focus-copy"><span className="focus-heading"><b>{item.title}</b></span>
-              <small>{item.description}</small>{item.disabled&&<small className="focus-block">{item.lockedCopy}</small>}
+              <small>{item.description}</small>{item.disabled&&<small className="focus-block">{item.lockedCopy}</small>}{item.warning&&<small className="focus-block">{item.warning}</small>}
             </span>
           </label>;
         })}</div>
@@ -115,6 +130,7 @@ export default function EnterprisePanel({ company, onFocus, blocked }: {
             <div><dt>Revenue multiple</dt><dd>{B.multiples[e.reliability-1]}× annual revenue</dd></div>
             <div><dt>Runway including lab profit</dt><dd>{net>=0?'Cash-flow positive':Math.max(0,company.cash/-net).toFixed(1)+' months'}</dd></div>
           </dl>
+          <p>Time warnings count the target attempt and assume every bid succeeds, with cash available for prerequisites and any lab upgrades. Funding delays or failed bids need more time.</p>
           <p>Pilots and enterprise customers use one slot; strategic partners use two. Idle capacity still costs money. Service incidents reduce billing by {Math.round((1-B.incidentBilling)*100)}% and discount the new-services premium by {Math.round((1-B.incidentPremium)*100)}% this month and next.</p>
           {!company.ended&&<div className="enterprise-preview">
             <b>{focuses.find(item=>item.id===focus)?.title} · {companyMoney(investment)}</b>

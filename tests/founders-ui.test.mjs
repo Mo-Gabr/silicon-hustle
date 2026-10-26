@@ -11,10 +11,12 @@ const protectedRead=f=>{
  const a=s.indexOf('/** Highest eligible valuation in the current run');
  const b=s.indexOf('\n}\n\n',a);
  if(a<0||b<0)throw Error('Personal Best function missing');
- return s.slice(0,a)+s.slice(b+4);
+ const allowed = s.slice(0,a)+s.slice(b+4);
+ assert.ok(allowed.includes('strategicReliability: 4'),'Only the approved Major Partner threshold changes');
+ return allowed.replace('strategicReliability: 4','strategicReliability: 5');
 };
 
-test('Founders UI revision preserves all economics, achievements, trading and standard Rankings rules',()=>{
+test('Founders revision permits only the approved partner threshold and preserves other economics and gameplay',()=>{
  for(const path of ['src/foundersGamble.ts','src/boardAttribution.ts','src/leaderboardCore.ts','src/rankingsApi.ts','src/ChipTradingPanel.tsx','src/chipTrading.ts','capacitor.config.ts','src/style.css'])assert.equal(protectedRead(path),previous(path),path);
  const functions=text=>{const ast=ts.createSourceFile('main.tsx',text,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);const out={};const visit=n=>{if(ts.isFunctionDeclaration(n)&&n.name&&!['App','Root','AccountGame','load','update','reset'].includes(n.name.text))out[n.name.text]=n.getText(ast);if(ts.isTypeAliasDeclaration(n)&&['State','Report'].includes(n.name.text))out[n.name.text]=n.getText(ast);ts.forEachChild(n,visit);};visit(ast);return out;};
  const now=functions(readFileSync('src/main.tsx','utf8'));
