@@ -27,6 +27,8 @@ Entries include historical capabilities as well as later changes and removals. E
 
 ### Changed
 
+- Reworked the public README and iOS setup guide for reproducible installation, clarified optional authentication and fictional Rankings, and labeled obsolete architecture records as historical.
+
 - Major Partner now requires reliability 4 rather than 5; contract prerequisites, costs, success probabilities and the Month 30/42 gates remain unchanged. No reliability bonus for successful contracts is added.
 
 - THE OVERLORD now follows the supplied financial-dashboard reference: one rounded dark-green panel, gold crown and accents, restrained sans-serif hierarchy, and matching card treatment on desktop and mobile.

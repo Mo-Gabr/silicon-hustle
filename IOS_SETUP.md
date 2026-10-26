@@ -1,162 +1,103 @@
-# Silicon Hustle: iOS Development & Testing
+# Building Silicon Hustle for iOS
 
-## Project status
-
-**iOS is the primary development and testing platform.** The web version remains available, but iPhone gameplay takes priority.
-
-- Native app: Capacitor, React, TypeScript, and Vite.
-- Bundle identifier: `com.siliconhustle.game`.
-- Current Mac Mini development branch: `codex/account-saves-finish`. This is the current working branch, not a permanent production branch.
-- Latest approved game commit: `97005c2e7f6bcee0d53f991a30161e44b70624df`.
-- Version: `0.9.0`.
-- 162/162 automated tests and the production build passed on MacBook Air; Capacitor iOS synchronization succeeded.
-- Successfully launched and played on a physical iPhone.
-- An in-place Xcode update retained existing local gameplay progress on the tested iPhone.
-- Ad Hoc IPA archive/export completed for external device testing. External tester installation and gameplay are not yet verified.
-- Native Google/email authentication and account switching still require physical-device validation.
-- No App Store or TestFlight release yet.
-
-## Two-Mac workflow
-
-- **Mac Mini:** Codex development, automated tests, production builds, documentation, and approved Git commits/pushes in `/Users/gabe-visla-macmini/Documents/silicon-hustle-the-overlord`, currently on `codex/account-saves-finish`.
-- **MacBook Air:** Review local changes and pull approved commits into `~/Projects/silicon-hustle`, then build, synchronize Capacitor, use Xcode for physical-iPhone testing, and archive/export Ad Hoc IPAs.
-
-Confirm the approved game commit before building. Preserve the Air's local native files, signing settings, and existing device installation. Stop to review conflicting local changes rather than resetting, cleaning, or overwriting them. Do not mix in experimental Verified Rankings work.
+Silicon Hustle packages the same React/TypeScript game used on the web in a Capacitor iOS application. Gameplay and saves remain local to the device; authentication is optional.
 
 ## Requirements
 
-- Mac with a compatible version of Xcode
-- Xcode Command Line Tools
-- Node.js compatible with the project's Vite version (Node 22.12+ or 20.19+)
-- CocoaPods
-- Apple Developer Program membership for Ad Hoc distribution
-- An iPhone or iOS Simulator
+- macOS with Xcode and a compatible iOS SDK
+- Xcode Command Line Tools selected for the full Xcode installation
+- Node.js 22.12+ or a newer supported LTS release, with npm
+- CocoaPods for the committed native dependency configuration
+- An iOS Simulator or a connected, trusted iPhone
+- Appropriate Apple development signing for physical devices; Apple Developer Program membership for Ad Hoc distribution
 
-## Build the iOS app
+Check the selected developer tools before building:
 
-The `ios/` Capacitor project already exists in the repository.
+```bash
+xcode-select -p
+xcodebuild -version
+xcodebuild -showsdks
+pod --version
+```
 
-**Do not run `npx cap add ios` to recreate it.**
+Complete any setup requested by Xcode. The app's deployment target must be supported by the selected Xcode/iOS SDK. If Xcode reports an unsupported target, use a compatible toolchain or review a deliberate native target change; do not regenerate the project or upgrade dependencies as a workaround.
 
-On the MacBook Air, from the repository root, install dependencies and run automated checks when preparing the checkout:
+## Build the existing project
+
+The repository already contains the Capacitor **`ios/` project**. Do not run `npx cap add ios` or replace the native project.
+
+From the repository root:
 
 ```bash
 npm ci
-npm test
-```
-
-Then use the verified build/synchronization workflow:
-
-```bash
 npm run build
 npx cap sync ios
 open ios/App/App.xcworkspace
 ```
 
-In Xcode:
+- `npm ci` installs JavaScript dependencies from the lockfile.
+- `npm run build` checks TypeScript and writes the web application to `dist/`.
+- `npx cap sync ios` copies those assets into the existing native app and updates native dependencies using CocoaPods.
+- The workspace includes the CocoaPods dependencies. Open **`App.xcworkspace`**, not `App.xcodeproj`.
 
-1. Select the App target.
-2. Use the existing working Apple development team under Signing & Capabilities. For a new setup, select your own authorized team; do not replace the Air’s working signing configuration.
-3. Keep the existing bundle identifier unless a deliberate change is required.
-4. Select an iOS Simulator or registered physical iPhone.
-5. Build and run the app as an in-place update when testing an existing installation. Do not uninstall it or clear app data.
+Repeat the build and sync after web changes. Review the resulting native diff before committing; preserve intentional configuration and signing settings. These commands do not publish a website or submit an iOS release.
 
-Always open `App.xcworkspace`, not `App.xcodeproj`, because the project uses CocoaPods.
+For optional sign-in, configure the public environment values before building and follow [AUTH_SETUP.md](AUTH_SETUP.md#native-ios-sign-in). Guest gameplay and fictional Rankings need no Supabase configuration.
 
-After approved web changes, repeat `npm run build` → `npx cap sync ios` → open `ios/App/App.xcworkspace` before testing. The build creates production web assets; synchronization copies them and updates native dependencies. These commands do not deploy the web app or release an iOS build.
+## Run in Xcode
 
-Review the native diff after synchronization. Preserve working signing and provisioning settings; do not reset native files merely to remove synchronization changes. If CocoaPods needs manual installation or repair, retain the existing troubleshooting step:
+1. Open the workspace and select the **App** scheme.
+2. Select a simulator or connected iPhone as the run destination.
+3. For a physical iPhone, trust the computer and enable Developer Mode if requested by iOS.
+4. Under **Signing & Capabilities**, select a team you are authorized to use and configure development signing. Automatic signing can manage provisioning when authorized.
+5. Confirm that the development profile includes the device and that a valid signing identity with its private key is available.
+6. Build and run.
 
-```bash
-(cd ios/App && pod install)
-```
+The committed bundle identifier is `com.siliconhustle.game`. It identifies this app, not a signing team available to every developer. A separate developer's installation may require a separately registered app identifier and matching authentication configuration; treat that as an intentional configuration change, not an upgrade to someone else's installation.
 
-Resolve pod/workspace problems before building, and continue to open the workspace rather than the project file.
+To update an existing installation, preserve its bundle identifier, signing team and compatible application identifier/entitlements. Stop on an identity mismatch. Do not uninstall the app or clear its container to work around installation errors when local saves need to survive.
 
-## Physical iPhone testing
+## Troubleshooting
 
-Successful launch and an in-place update preserving progress are already verified on the tested physical iPhone. For each new approved build, check the following; this list does not claim that every scenario below has passed:
+- **Missing workspace or pod dependencies:** Confirm `npm ci` and Capacitor sync completed. If needed, run `(cd ios/App && pod install)`, retaining the existing dependency configuration and reviewing lockfile changes.
+- **Wrong developer tools:** Check that `xcode-select -p` points to the intended full Xcode installation rather than standalone Command Line Tools.
+- **Signing or provisioning failure:** Use Xcode's account and signing tools to check team access, certificate validity, private-key availability and device registration. Do not commit certificates, private keys or provisioning profiles.
+- **Missing intermediate certificate:** Use Apple's standard certificate chain and default trust settings; do not force an untrusted development identity to “Always Trust.”
+- **Stale plugin build:** After reviewing dependency changes, use Xcode's **Product → Clean Build Folder**, then rebuild the workspace. This is a build cleanup, not an instruction to erase the installed app.
+- **Authentication callbacks:** Verify the configured URL schemes, OAuth clients and Supabase redirects using [AUTH_SETUP.md](AUTH_SETUP.md). A successful native build does not verify provider callbacks.
 
-- Start and resume a game.
-- Buy and sell chips.
-- Advance months and manage the AI lab.
-- Test the Founder’s Gamble and applicable endings.
-- Confirm THE OVERLORD and its fixed fictional Top 10 appear in Rankings. MOGABR’s featured value and #1 entry must both show `$203,718,617,301.68`.
-- Close and reopen the app without losing progress.
-- Test gameplay without an internet connection.
-- Test an in-place app update while preserving local saves.
+## Optional Ad Hoc distribution
 
-**Important:** An in-place update has successfully preserved progress on one tested iPhone. This does not guarantee recovery after uninstalling, reinstalling, or changing bundle identifiers.
+Ad Hoc distribution requires the appropriate Apple Developer Program access, distribution signing and registered test devices.
 
-## Ad Hoc distribution
+1. Register each tester's iPhone UDID privately in the Apple Developer portal.
+2. Ensure the intended devices are included in the Ad Hoc provisioning profile.
+3. In Xcode, select a suitable generic iOS device destination and choose **Product → Archive**.
+4. Open the archive in Organizer and use the available Ad Hoc distribution option to export a signed IPA.
+5. Verify that the exported app uses the intended identity and its provisioning profile includes the test devices.
+6. Deliver it through a supported installation method and confirm installation and startup on the target devices.
 
-For testing outside a directly connected development device:
-
-1. Register the tester's iPhone UDID in the Apple Developer portal.
-2. Ensure the device is included in the appropriate Ad Hoc provisioning profile.
-3. In Xcode, select a suitable generic iOS device destination.
-4. Choose Product → Archive.
-5. In Organizer, distribute the archive using Ad Hoc distribution.
-6. Export the signed IPA.
-7. Verify the exported app's provisioning profile includes the tester's UDID.
-8. Deliver the IPA using an appropriate installation service or other supported distribution method.
-
-A signed Ad Hoc IPA archive/export has completed during testing. External tester installation and gameplay are **not yet verified**. Archive/export success alone does not establish that another device can install or play the app.
-
-Treat third-party IPA distribution links as sensitive. Do not publish private testing links, personal Apple Developer credentials, signing material, provisioning secrets, or private device identifiers in the repository. Register and check UDIDs privately in the Developer portal and provisioning profile, not in documentation.
+Menu labels can vary by Xcode version. Exporting an IPA does not establish that a tester can install it, and an IPA contains no backup of player saves. Keep device identifiers, signing material and private distribution links out of the repository. Ad Hoc export is separate from TestFlight or App Store submission.
 
 ## Local saves and data safety
 
-Silicon Hustle currently stores gameplay progress locally on each device.
-
-- Gameplay does not require an account.
-- Games do not synchronize between devices. Guest and each authenticated account have separate local games and Personal Best records; signing in is not a backup or a transfer mechanism.
-- Online Rankings are not required for gameplay.
-- Do not uninstall the app casually during testing.
-- Do not change the bundle identifier without considering the effect on local data.
-- Preserve recovery information and backups before experimenting with save migrations.
-- Do not assume an app reinstall will restore saved progress.
-
-The existing save and recovery logic should remain untouched during documentation-only updates.
-
-## Rankings and authentication
-
-THE OVERLORD displays a fixed fictional Top 10 and the selected profile’s local Personal Best. It makes no Supabase Rankings requests and is not a live competitive leaderboard. MOGABR remains #1 and Gabe M. #2; the featured MOGABR valuation matches #1 at `$203,718,617,301.68`.
-
-Real online Rankings and score submission are unfinished and must not be described as released.
-
-Optional Google and email authentication is implemented in shared code, including native integration, but native Google sign-in, email magic-link callbacks, and account switching still require physical-iPhone verification. Gameplay remains offline-first with no cloud gameplay synchronization.
-
-### Native authentication validation
-
-Before advertising native sign-in as verified:
-
-1. Verify the existing registered custom callback scheme (`com.siliconhustle.game://auth/callback`); do not replace a working scheme or introduce universal links without a separate reviewed change.
-2. Check the approved callback configuration in Supabase Auth. Do not change production settings as part of documentation or build work.
-3. Preserve the existing native Google integration and browser/deep-link handling. Test the actual provider flows rather than assuming web OAuth behavior applies to iOS.
-4. Verify incoming email authentication links handled using Capacitor's App plugin, including cold starts.
-5. Test Google sign-in, email magic links, sign-out, and switching accounts on a physical iPhone. Check that Guest and account saves and Personal Best remain isolated, and earlier progress/recovery copies remain preserved.
-6. Review Sign in with Apple requirements, identity linking, and account deletion before a public release.
-
-Browser authentication redirects are not automatically compatible with a native Capacitor WebView.
-
-Do not advertise native sign-in or cross-device account recovery as working until verified.
+- Guest and each account have separate games and Personal Best records on the same device.
+- Authentication does not synchronize games or restore progress from another device.
+- Clearing storage, uninstalling, or changing app identity can remove access to local progress and recovery copies.
+- Preserve recovery copies and use disposable games for resets, save-format experiments and ending tests. Do not rely on a retained copy in the app's own container as an external backup.
+- An in-place update should be checked for save continuity; it is not a guarantee of recovery after reinstallation.
 
 ## Release checklist
 
-Before App Store or TestFlight distribution:
+Before distributing a build:
 
-- Validate gameplay, saves, and in-place updates on physical iPhones.
-- Verify recovery/export behavior and document limitations.
-- Test native authentication if it is included in the release.
-- Complete real Rankings only when ready.
-- Verify offline gameplay and reconnection behavior.
-- Review safe areas, layout, app icons, and launch assets.
-- Review privacy disclosures, account-related requirements, and App Store guidelines.
-- Perform a separate release build and distribution review.
+- Run `npm test`, `npm run test:browser` and `npm run build`.
+- Verify startup, save resume, buy/sell, AI Lab and month advancement on a physical device.
+- Check Founder’s Gamble qualification, extension progression and Month 42 completion with disposable data.
+- Verify local profile isolation, restart persistence and in-place update behavior.
+- Check offline play, scrolling, safe areas, rotation, enlarged text and VoiceOver.
+- Confirm THE OVERLORD's fictional Top 10 works without sign-in or leaderboard requests.
+- If authentication is configured, test Google, email links, cold starts, sign-out and account switching on the device.
+- Review app icons, privacy disclosures, account-related platform requirements and distribution signing separately.
 
-## Repository safety
-
-Keep experimental native signing changes, provisioning files, IPA exports, and local backups out of commits unless they are intentionally required and reviewed.
-
-Do not merge `codex/account-saves-finish` into `main` or deploy production changes without separate approval. The current development workflow does not authorize changing the installed iPhone app without a separately approved device-testing step.
+See [README.md](README.md#building-for-ios) for the short setup path and [AUTH_SETUP.md](AUTH_SETUP.md) for account configuration. No cloud gameplay saves or live Rankings service is required.

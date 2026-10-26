@@ -1,187 +1,122 @@
 # Silicon Hustle
 
-Silicon Hustle is an AI hardware trading and startup simulator built primarily for **iPhone**, using Capacitor, React, TypeScript, and Vite.
+A fictional AI hardware trading and startup simulator for iPhone and the web, built with shared React and TypeScript gameplay.
 
-Start with **$5M cash** and a **$25M company valuation**. Trade chips, grow your AI lab, survive the market, and try to reach a **$100M valuation within 30 months**.
+## About the Game
 
-**Three moves. One $100M exit.** Unless you decide $100M isn't enough.
+Start with **$5M in cash** and a **$25M company valuation**. Buy and sell AI hardware, build your AI lab, and navigate boardroom crises to reach **$100M within 30 months**.
 
-**iOS is the development priority.** The web version remains available at [silicon-hustle.vercel.app](https://silicon-hustle.vercel.app).
+Reach the goal at Month 30 and choose whether to cash out or take **The Founder’s Gamble**: an optional 12-month **Build the Enterprise** chapter ending at **Month 42**. Land clients, expand capacity, and improve reliability as you pursue a billion-dollar company. Your recorded Month 30 victory stays intact regardless of the extended outcome.
 
-**One device. One game.** Progress saves locally. Gameplay doesn't require an account or internet connection, and saved games do not synchronize between devices.
+## Features
 
-### Current status
+- **Hardware trading:** Buy and sell simulated chips, follow monthly price movements, and manage your portfolio.
+- **Interactive trading panel:** Tap a market card or portfolio holding for Buy/Sell controls, monthly changes, average purchase cost, position value, and fee-aware profit/loss.
+- **Startup management:** Grow the AI lab, earn recurring revenue, respond to crises, and pursue an exit.
+- **Build the Enterprise:** Choose a monthly focus, land pilots and larger contracts, and pursue Unicorn and Legendary MOGABR achievements.
+- **Local saves:** Progress saves automatically and resumes on the same device. Normal gameplay works offline without an account.
+- **Optional accounts:** Guest and each authenticated account have separate local games and Personal Best records.
+- **Fictional Rankings:** THE OVERLORD features MOGABR and a fixed fictional Top 10 alongside your local Personal Best. It is not a live competitive leaderboard and submits no scores.
 
-- **Application version:** `0.9.0`.
-- **Latest approved game commit:** `97005c2e7f6bcee0d53f991a30161e44b70624df`.
-- **Validation:** 162/162 automated tests and the production build passed on MacBook Air; Capacitor iOS synchronization succeeded.
-- **iOS:** The game launched successfully on a physical iPhone. An in-place Xcode update retained existing gameplay progress.
-- **Distribution:** Ad Hoc IPA archive/export completed for external testing. External tester installation and gameplay are not yet confirmed. No TestFlight or App Store release.
-- **Rankings:** Fixed fictional Top 10 with MOGABR at #1; both its featured valuation and #1 entry display **$203,718,617,301.68**. Live competitive rankings are not released.
-- **Current Mac Mini development branch:** `codex/account-saves-finish`; this is the current working branch, not a designation of the permanent production branch.
-- **Pending device checks:** Native Google/email authentication, account switching, and recovery after reinstallation remain unverified on a physical iPhone.
+## Tech Stack
 
-For the matching two-Mac build, signing, physical-device testing, and Ad Hoc distribution workflow, see [IOS_SETUP.md](IOS_SETUP.md).
+- React and TypeScript
+- Vite for development and production builds
+- Capacitor and the existing native iOS project
+- Supabase for optional Google and email authentication
+- Vercel-compatible web hosting
 
-## Gameplay
+## Requirements
 
-- Buy and sell simulated AI hardware from NVIDIA, AMD, and Intel.
-- Advance with **NEXT MONTH** to move hardware prices and collect any AI lab profit.
-- Monitor cash, holdings, portfolio profit/loss, and monthly investor reports. Company valuation is not the same as spendable cash.
-- Invest in an AI lab from Month 4 to build recurring revenue and manage operating costs.
-- Respond to activist investors, takeover attempts, and shareholder votes, with visible financial consequences.
-- Pursue fictional acquisition offers or, when eligible, a fictional IPO at the end of the run.
+- Node.js **22.12+** or a newer supported LTS release, with npm
+- Git and a full repository checkout; some regression tests compare historical commits
+- Chrome or Chromium for browser regressions
+- For iOS: macOS, Xcode with a compatible iOS SDK, and CocoaPods
 
-Hardware prices, companies' offers, financial outcomes, and startup valuations are simulated for play. Silicon Hustle is satire, with no affiliation to the hardware makers, acquirers, or publications depicted.
+## Getting Started
 
-## The Founder’s Gamble and Build the Enterprise
-
-The original 30-month economy, fees, hardware trades, lab upgrades, and crises remain unchanged. A newly completed Month 30 company worth at least **$100M** gets a choice: **Take the Money & Run**, or **Double Down** for one optional chapter ending at **Month 42**. Previously completed legacy saves stay completed.
-
-Your **Month 30 victory and standard Rankings peak are frozen before the choice**. Extended gains, early exits, losses, and bankruptcy are recorded separately and never replace that standard result. Score publishing is paused in this local-only release; the frozen standard result is still preserved on the device. There is no separate public extended leaderboard.
-
-In **Build the Enterprise**, choose a monthly focus: land pilots, win enterprise customers, pursue strategic partnerships, expand delivery capacity, improve reliability, or consolidate. Choices have personality—and consequences: customer bids can fail, idle capacity costs money, and service incidents hurt billing and valuation. Compact action rows show each investment’s cost and effect. The enterprise summary shows recurring revenue, capacity, and reliability; cash and valuation remain in the existing financial summary. Expand **Details** for operating costs, incident risk, valuation multiples, and cash-flow projections. The Month 30 choice and enterprise screens respect mobile safe areas and support larger text. Selecting a focus is planning; **NEXT MONTH** pays and settles it once. A compact Pilot → Big Client → Major Partner path shows contract and reliability progress. Locked actions list every unmet contract, reliability, cash and free-slot requirement. The scheduled action and its possible gain are shown before advancement; **Operate** adds no clients or upgrades, and every settlement resets the focus to **Operate**. Choose again each month. Land Big Client requires two pilots and reliability 3; Major Partner requires two big clients and reliability **4**, with its existing $8M cost and 30% bid chance unchanged. Time warnings count the best-case moves needed, including the target attempt: all bids succeed and funding (including optional lab upgrades) is available. Actual retries or cash delays can take longer. Unaffordable plans block advancement until changed or funded. Existing lab income and trading continue under their original rules.
-
-- **Unicorn:** reach **$1 billion** during Months 31–42. Once earned, the achievement stays recorded even if valuation falls.
-- **Legendary MOGABR:** actually finish **Month 42** at **$2 billion or more**, with a profitable original AI lab and no bankruptcy. An earlier peak or voluntary early exit does not qualify. This achievement is distinct from the Rankings developer benchmark.
-- **Early exit:** confirm an exit to record the extended result and stop further months and revenue. Canceling does not change the game.
-- **Dynamic losing endings:** four satirical stories reflect the final valuation, with timing adapted to the ending month. Bankruptcy and fraud retain priority.
-
-Decisions, contracts, monthly settlements, achievements, and both outcomes stay in the local JSON game save. No database migration is required. A reload resumes that device’s game without replaying revenue, investments, or decisions. Restoring an older snapshot can rewind progress; an old app bundle may not understand the extension. Each browser profile and installed iOS app has its own independent game.
-
-The same React screens and TypeScript rules power web and Capacitor iOS. Enterprise balance parameters live in `src/foundersGamble.ts` under `ENTERPRISE_BALANCE`. Contract and incident outcomes are deterministic per saved seed/month/channel; restoring an older snapshot can still allow decisions with foreknowledge. Financial multiples are fictional game balance, not investment guidance. Physical-device validation is tracked in [the enterprise iPhone checklist](docs/ENTERPRISE_IPHONE_CHECKLIST.md); browser tests do not replace testing on an installed iPhone.
-
-## Interactive chip trading
-
-Click or tap a Market card or an owned hardware name to open the shared trading panel: a compact desktop dialog or mobile bottom sheet.
-
-The panel separates **Monthly Change** from **Your Position**. It shows the current and previous month's prices, dollar and percentage changes, quantity owned, weighted average purchase cost, holdings market value, and unrealized profit/loss. Missing or unreliable historical data displays **Unavailable**.
-
-BUY and SELL include quantity controls, MAX buying, ALL selling, cost/proceeds previews, and explicit confirmation. Purchase cost includes the 1% buying fee; profit/loss estimates account for the 1% selling fee. Holdings market value is shown before selling fees. Orders retain the game's 999-chip limit, so ALL selects up to 999 units per order.
-
-On mobile, Market appears before the collapsed My Portfolio section. Expand the portfolio for labeled financial details; tap a holding to trade without navigating away.
-
-## Rankings / THE OVERLORD
-
-The **RANKINGS** navigation button opens **THE OVERLORD**, a fictional financial dashboard with a gold crown, dark-green panel and shared desktop/mobile visual identity. **MOGABR** is the permanent Boss of Bosses with an estimated empire valuation of **$203,718,617,301.68**. This is satirical presentation, not a verified player entry or a live leaderboard.
-
-The **Top 10** is a fixed fictional list, not a live Supabase leaderboard. **Your Personal Best** is the highest eligible local valuation across games, including Founder’s Gamble through Month 42, kept separately for Guest and each account across new games and app restarts. Existing snapshots and scoped recovery archives can restore an earlier best; unassigned legacy games never count for an account automatically.
-
-Cycle six system notices with **Next Notice**. The page works offline without Supabase configuration or sign-in, makes no leaderboard requests or score submissions, and does not write game or account storage. Existing Rankings implementation files, published records and founder names are retained unchanged; live browsing, publishing and name editing are not exposed by this page.
-
-## One device, one game
-
-Play without an account, Supabase configuration, or connectivity. A new game is saved immediately; subsequent actions save automatically, and launching the app resumes the local game. There is no save-source picker, automatic import, or synchronization between devices. Guest and each authenticated account have separate games stored only on this device. Signing in selects that account’s game; signing out starts a fresh Guest game after preserving earlier Guest progress in its recovery archive. Shared legacy games are copied only after an explicit ownership choice, and original keys are retained.
-
-After explicit assignment, supported historical snapshots in `silicon-hustle-v04` and `compute-empire-v04` are read within the chosen profile without rewriting the original shared keys. New progress uses `silicon-hustle-local-v1` inside that profile’s account-scoped namespace; historical keys are never deleted or overwritten. When both exist, the local-only game is active. Presentation defaults can be supplied in memory, but money, completion state, and achievements are never fabricated. Returning to an older client may show the older historical snapshot rather than recent local-only progress.
-
-Personal Best is local device data, not a verified online result or cross-device backup. Ordinary gameplay saves continue if optional record storage is unavailable; a reset that cannot preserve the outgoing record is stopped. Interrupted record updates can be recovered from retained snapshots, but clearing app storage removes local records too.
-
-An incompatible game blocks play instead of silently resetting. **Save a Copy** and **Try Again** offer a simple recovery path. An explicit fresh start first preserves original snapshots locally; failure to preserve them blocks the replacement. Explicit New Game resets also retain the previous snapshot. No automatic recovery imports are performed. Storage failures retain the previous game and show an error. Recovery copies consume device storage and are not automatically pruned.
-
-Clearing browser/app storage or deleting the installed app can remove the game and recovery copies. Use one active window, keep exported copies private, and do not rely on an account as a backup. Existing remote data is neither downloaded, changed, nor deleted by this client. The tested in-place Xcode update preserved gameplay progress. Recovery exports, reinstallation recovery, and other update/device combinations still require validation; an exported Ad Hoc IPA is not a backup of saved games.
-
-| Feature | Supabase requirements |
-| --- | --- |
-| Gameplay, local saves, Founder’s Gamble and achievements | None |
-| THE OVERLORD placeholder and manual system notices | None; no leaderboard requests |
-| Optional account sign-in | Configured Supabase Google/email authentication; not required for THE OVERLORD |
-| Score publishing and founder-name editing | Paused; no submission requests are sent |
-
-See [optional account authentication](AUTH_SETUP.md). Existing SQL files are historical setup assets, not instructions to change production for this release. No schema change or migration is needed.
-
-## Platforms and technology
-
-- **iOS (primary):** Capacitor packages the React, TypeScript, and Vite application for iPhone. Successfully built and tested on a physical device through Xcode. An Ad Hoc IPA has also been exported for external testing.
-- **Web (secondary):** React, TypeScript, and Vite, hosted on Vercel.
-- **Backend:** Optional Supabase authentication. Existing Rankings code and data are preserved, but the active THE OVERLORD placeholder does not make backend requests.
-
-The package version is **0.9.0**.
-
-**Release status:** iOS development and Ad Hoc testing. No App Store or TestFlight release yet.
-
-For native setup, signing, and distribution instructions, see [IOS_SETUP.md](IOS_SETUP.md).
-
-## Development workflow
-
-- **Mac Mini:** Codex development, automated tests, production builds, documentation, and approved Git commits/pushes. Work currently uses `codex/account-saves-finish` in `/Users/gabe-visla-macmini/Documents/silicon-hustle-the-overlord`.
-- **MacBook Air:** Pull approved commits into `~/Projects/silicon-hustle` after reviewing local changes, then build, synchronize Capacitor, use Xcode for physical-iPhone testing, and archive/export an Ad Hoc IPA. Preserve local native files and signing settings; do not reset or overwrite them to synchronize code.
-
-Confirm the approved commit before building. Development validation and an IPA export do not establish successful external tester installation, native authentication, or a production release.
-
-## Local development
-
-Use Node.js **22.12+** or **20.19+**, with npm.
+Clone the repository and install the locked dependencies:
 
 ```bash
 git clone https://github.com/Mo-Gabr/silicon-hustle.git
 cd silicon-hustle
-npm install
+npm ci
 ```
 
-For guest-only development, leave the Supabase variables unset. To enable optional account features, copy the environment template and replace its placeholders with your own development project's URL and public publishable/anon key before starting:
+Start the development server and open the URL printed by Vite:
+
+```bash
+npm run dev
+```
+
+Run tests and create a production build:
+
+```bash
+npm test
+npm run test:browser
+npm run build
+```
+
+The browser suite uses disposable profiles and synthetic data. Set `CHROME_BIN` to your Chrome/Chromium executable if it is not found; the suite skips when no browser is available.
+
+`npm run build` checks TypeScript and writes the web application to `dist/`. To preview that build locally:
+
+```bash
+npm run preview
+```
+
+## Optional Configuration
+
+Guest gameplay, local saves, and fictional Rankings need no Supabase configuration. To enable account sign-in, copy the template:
 
 ```bash
 cp .env.example .env.local
 ```
+
+Replace the placeholders with your Supabase project's public configuration:
 
 ```dotenv
 VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY
 ```
 
-These are browser-visible configuration values. Never put service-role keys or database passwords in `VITE_` variables, and do not commit `.env.local`.
+Configure the Google/email providers and allowed callback URLs as described in [AUTH_SETUP.md](AUTH_SETUP.md). Native Google sign-in also depends on matching OAuth client and URL-scheme configuration; environment variables alone are insufficient.
 
-Start the app and open the URL printed by Vite:
+These values are included in the client build. **Never use service-role keys, database passwords, or other secrets in `VITE_` variables.** Keep `.env.local` out of Git. Restart the dev server or rebuild after changing configuration.
 
-```bash
-npm run dev
-```
+Authentication selects a local profile; it does **not** enable cloud saves, cross-device progress, or live Rankings. No database migration is required for the current game's local-save or fictional-Rankings features.
 
-Run automated checks and build the web app:
+<a id="ios-development"></a>
 
-```bash
-npm test
-npm run test:browser
-npm run build
-npm run preview
-```
+## Building for iOS
 
-The browser regression suite uses isolated profiles, synthetic data, and intercepted backend requests. It requires an installed Chrome/Chromium browser; its default path is Google Chrome on macOS. Set `CHROME_BIN` to another compatible executable if needed. Missing Chrome results in a skipped browser suite. Use a full Git checkout: regression tests compare against historical source commits.
+The Capacitor `ios/` project is already committed. Use it rather than regenerating the native project.
 
-The build type-checks TypeScript and generates `dist/`; `preview` serves that build locally. In Vercel, use `npm run build` and output directory `dist`. Optional account features need the two public environment variables in each intended Vercel environment, including Preview when testing there; they are embedded at build time.
-
-## iOS development
-
-The native **`ios/` project is already committed**. Use the existing workspace; do not add the iOS platform again.
-
-On the MacBook Air, use the existing checkout, Xcode/iOS SDK, CocoaPods, and npm dependencies. The verified workflow is:
+On a compatible Mac, from the repository root:
 
 ```bash
+npm ci
 npm run build
 npx cap sync ios
 open ios/App/App.xcworkspace
 ```
 
-`npm run build` type-checks and creates the production web build. `npx cap sync ios` copies it into the existing native project and updates native dependencies. Synchronization can change native files: review its diff and preserve the MacBook Air's signing configuration rather than resetting those files. Do not run `npx cap add ios` again.
+The build creates the web assets. Capacitor sync copies them into the native app and updates its native dependencies. Open the **workspace**, not the `.xcodeproj`, so CocoaPods dependencies are included.
 
-In Xcode, use the existing App scheme, signing team, and bundle identifier with the connected iPhone. Build and run as an in-place update; do not uninstall the existing app or clear its data. This procedure successfully launched the game and retained existing gameplay progress on the tested iPhone. Repeat the build/sync/workspace steps for later approved web changes. Building and syncing locally do not deploy to Vercel or publish an iOS release.
+In Xcode, select the **App** scheme and a simulator or connected iPhone. Physical-device installation requires appropriate Apple development signing and provisioning. Review changes produced by synchronization and preserve the existing app identity when updating an installation whose local saves you want to keep.
 
-Archive/export for Ad Hoc external testing has completed. Installation and gameplay on an external tester's device remain unconfirmed.
+The deployment target must be supported by your Xcode/iOS SDK; check compatibility before building. See [IOS_SETUP.md](IOS_SETUP.md) for signing, provisioning, distribution, and troubleshooting guidance, and [AUTH_SETUP.md](AUTH_SETUP.md#native-ios-sign-in) for native authentication setup.
 
-See the [iOS validation checklist](IOS_SETUP.md#release-checklist) and [trading panel behavior](INTERACTIVE_CHIP_TRADING.md) for additional development context. The commands above use the existing native project. For the complete iOS-first workflow, including physical-device testing, Ad Hoc IPA distribution, signing, and save protection, see IOS_SETUP.md.
+## Important Notes
 
-## Current limitations
+- **Saves are device-local.** Signing in is not a backup. Signing out returns to a fresh Guest game after preserving earlier Guest progress locally; account games and Personal Best records remain separate.
+- Clearing browser/app storage or uninstalling the app can remove saves and recovery copies. Recovery archives on the same device do not replace an external backup.
+- Historical saves may require an explicit profile or game-selection choice. Incompatible saves offer recovery options rather than silently resetting progress.
+- Monthly price history or cost basis that cannot be established reliably is shown as **Unavailable**.
+- The game is fictional satire, not financial advice, and is not affiliated with the companies or publications depicted.
 
-- **Rankings:** Live competitive Rankings are not available. MOGABR is fictional, not a verified player score. Historical Rankings data remains separate from the active placeholder.
-- **Local saves:** Games do not synchronize between devices. One in-place iPhone update successfully preserved progress, but reinstalling the app, recovering deleted saves, and transferring progress between devices remain unverified.
-- **Authentication:** Native Google sign-in, email magic-link callbacks, and account switching still require physical-iPhone verification. Gameplay does not require an account.
-- **Historical market data:** Older saves without a reliable previous-month price display **Unavailable** until a subsequent month transition establishes a baseline.
-- **iOS distribution:** The app has been tested through Xcode, and an Ad Hoc IPA has been exported. External tester installation and gameplay remain to be confirmed. There is no TestFlight or App Store release.
+See [interactive trading documentation](INTERACTIVE_CHIP_TRADING.md) for panel behavior and [CHANGELOG.md](CHANGELOG.md) for change history.
 
+## License
 
-## Local save recovery after the diagnostic build
-
-Normal gameplay and local autosave are restored. If a valid historical Month 42 game is hidden by an earlier local game, a one-time **Choose Your Game** screen recommends Month 42 and lets you keep either game. Nothing is replaced until you choose. Both original snapshots are retained in the local recovery archive before the selected game becomes active. The choice is remembered; subsequent launches resume normally. A completed Month 42 run stays completed, with its result and the normal New Game option preserved.
-
-Install over the existing iPhone app using the same bundle identifier; do not uninstall or clear app data. Rebuild with `npm run build`, run `npx cap sync ios`, open `ios/App/App.xcworkspace`, and run the existing app from Xcode after reviewing native changes. No sign-in, cloud synchronization, or diagnostic screen is required to play.
+No project license is included in this repository. Public visibility does not grant permission to modify or redistribute the game; obtain permission from the rights holder before doing so.

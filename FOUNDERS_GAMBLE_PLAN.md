@@ -1,6 +1,6 @@
 # The Founder's Gamble — Phase B implementation review
 
-> Persistence update: this document records the earlier Founder’s Gamble plan and validation. The separately authorized local-only release removes synchronization and save selection, preserves the same enterprise mechanics and local achievement metadata, and pauses score publication rather than bypassing legacy attribution. See README.md and AUTH_SETUP.md for current behavior.
+> **Historical architecture record — not current setup instructions.** This document records the original Founder’s Gamble design and implementation review. References below to cloud synchronization, live Rankings, branches, commits and validation status describe that earlier work. The current client uses account-isolated local games and fictional Rankings without score publishing. Enterprise rules have subsequently changed, including Major Partner eligibility at reliability 4. Use [README.md](README.md), [AUTH_SETUP.md](AUTH_SETUP.md) and [IOS_SETUP.md](IOS_SETUP.md) for current behavior and setup.
 
 
 Status: Phase B approved by the user; implementation is local and uncommitted. The approved Phase A design and feasibility evidence are retained below as historical context. Base: `f5df658696f8158a468ff8d036b947e47f9828da`. Branch: `codex/founders-gamble`.

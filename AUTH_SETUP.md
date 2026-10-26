@@ -21,7 +21,13 @@ Authentication does **not** provide cloud-save synchronization, remote game reco
 
 ## Optional Supabase authentication setup
 
-Configure the existing Supabase project’s Email/Google providers and approved authentication redirects for each intended environment. Use only the project URL and public publishable/anon key in the browser build:
+For optional accounts, configure a Supabase project’s Email/Google providers and allowed authentication redirects for each intended environment. From the repository root, copy the public configuration template:
+
+```bash
+cp .env.example .env.local
+```
+
+Replace the placeholders in `.env.local` using only the project URL and public publishable/anon key:
 
 ```dotenv
 VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
@@ -36,7 +42,7 @@ The web client uses Supabase Google OAuth and email magic links. Both request a 
 
 ### Native iOS sign-in
 
-The existing native implementation uses the Google Sign-In SDK through the social-login plugin, then authenticates with Supabase using the returned ID token. Preserve the configured iOS and web/server client IDs and nonce handling in `src/AuthGate.tsx`.
+The existing native implementation uses the Google Sign-In SDK through the social-login plugin, then authenticates with Supabase using the returned ID token. For your Supabase/Google project, match the iOS and web/server OAuth client IDs configured in `src/AuthGate.tsx` with the native URL scheme and bundle configuration. Preserve nonce handling; changing environment values alone does not configure these native clients.
 
 Email/deep links use `com.siliconhustle.game://auth/callback`, handled through Capacitor’s App plugin. The committed native URL registrations are:
 
@@ -45,7 +51,7 @@ Email/deep links use `com.siliconhustle.game://auth/callback`, handled through C
 
 AppDelegate passes Google callbacks to Google Sign-In first and forwards other URLs to Capacitor. Keep the app callback allowed in Supabase Auth and preserve the existing Google iOS client/bundle configuration. URL schemes and OAuth client IDs are public identifiers; private provider credentials and signing material must not enter the repository.
 
-**Native Google sign-in, email magic-link callbacks, sign-out and account switching still require physical-iPhone validation**, including cold starts and local-profile isolation. Committed callback handling and a successful app build do not establish that those flows work on a device. No production authentication settings are changed by this documentation.
+When configuring a build, test native Google sign-in, email magic-link callbacks, sign-out and account switching on a physical iPhone, including cold starts and local-profile isolation. A successful build does not establish correct provider configuration or callback handling.
 
 ## Local persistence and recovery
 
@@ -53,17 +59,17 @@ Gameplay keys are scoped to Guest or the authenticated account. Within that prof
 
 Personal Best persists separately across games, resets and restarts for each profile, including eligible Founder’s Gamble valuations through Month 42. It is a local record, not a verified online score or a cross-device backup.
 
-An incompatible game is held in place, with **Save a Copy** and **Try Again**. Starting fresh is explicit and only proceeds after original snapshots are retained locally. Exported recovery copies contain game data, not authentication tokens. Native recovery export and reinstallation recovery still require device testing; retained originals do not depend on a successful external download. Clearing app/browser storage removes local games and recovery history; signing in cannot restore deleted data. No cloud import or synchronization occurs automatically.
+An incompatible game is held in place, with **Save a Copy** and **Try Again**. Starting fresh is explicit and only proceeds after original snapshots are retained locally. Exported recovery copies contain game data, not authentication tokens. Check that recovery exports actually reach the intended destination; retained originals remain device-local and do not depend on a successful external download. Clearing app/browser storage removes local games and recovery history; signing in cannot restore deleted data. No cloud import or synchronization occurs automatically.
 
-The tested in-place Xcode update preserved existing gameplay progress. That result does not guarantee recovery after uninstalling the app, changing its identity, or clearing storage.
+Preserve application identity when installing an update. An in-place update is not a backup and does not guarantee recovery after uninstalling, changing identity, or clearing storage.
 
 ## Build and validate
 
 ```bash
-npm install
+npm ci
 npm test
 npm run test:browser
 npm run build
 ```
 
-For iOS, follow the existing-project build → `npx cap sync ios` → Xcode workspace workflow in [README.md](README.md#ios-development) and [IOS_SETUP.md](IOS_SETUP.md). Preserve working native signing settings and the installed app. The React/TypeScript gameplay and persistence implementation is shared across web and iOS. Browser regressions use disposable synthetic snapshots and intercepted APIs; they do not establish physical-device authentication success or inspect production accounts and saves.
+For iOS, follow the existing-project build → `npx cap sync ios` → Xcode workspace workflow in [README.md](README.md#building-for-ios) and [IOS_SETUP.md](IOS_SETUP.md). Preserve working native signing settings and the installed app. The React/TypeScript gameplay and persistence implementation is shared across web and iOS. Browser regressions use disposable synthetic snapshots and intercepted APIs; they do not establish physical-device authentication success or inspect production accounts and saves.
