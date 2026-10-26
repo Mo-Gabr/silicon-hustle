@@ -45,7 +45,7 @@ test('Rankings displays the exact fixed Top 10 in order',()=>{
 });
 test('Personal Best displays the highest valuation across the 42-month game',()=>{
  const game={
-  month:42,
+  month:42,cash:2080000000,labs:0,seed:42,ended:true,positions:{},prices:Object.fromEntries(['l40s','a100','h100','h200','b200','mi300','mi325','gaudi'].map(k=>[k,34000])),
   reports:[
    {month:30,valuation:175e6},
    {month:39,valuation:2.5e9},
@@ -54,6 +54,7 @@ test('Personal Best displays the highest valuation across the 42-month game',()=
   gamble:{
    version:1,
    decision:'extend',
+   enterprise:{reliability:1,purchasedSlots:0,contracts:[],discountThrough:0,focus:'operate',ledger:[]},
    standardResult:{
     month:30,
     valuation:175e6,
@@ -85,14 +86,14 @@ test('Personal Best displays the highest valuation across the 42-month game',()=
  assert.ok(invalid.includes('NO SCORE YET'));
 });
 
-test('all six manual notices match approved copy and no timer, network or persistence is introduced',()=>{
+test('all six manual notices stay unchanged with no timers or network access',()=>{
  assert.deepEqual(SYSTEM_NOTICES,expectedNotices);
  const source=readFileSync('src/Overlord.tsx','utf8');
  for(const forbidden of ['supabase','fetch(','localStorage','sessionStorage','setInterval','setTimeout','BillionaireBoard','VerifiedRankings'])assert.ok(!source.includes(forbidden),forbidden);
  assert.ok(source.includes('type="button"'));assert.ok(source.includes('(current+1)%SYSTEM_NOTICES.length'));
- const app=readFileSync('src/main.tsx','utf8');assert.ok(app.includes("{tab==='board'&&<Overlord game={s} currentValuation={worth} savedBest={savedPersonalBest(store)}/>}"));assert.ok(app.includes('>RANKINGS</button>'));assert.ok(!app.includes('BillionaireBoard'));assert.ok(!app.includes('announceBoardPeak'));
+ const app=readFileSync('src/main.tsx','utf8');assert.ok(app.includes("{tab==='board'&&<Overlord game={s} currentValuation={worth} savedBest={savedPersonalBest(store)} store={store}/>}"));assert.ok(app.includes('>RANKINGS</button>'));assert.ok(!app.includes('BillionaireBoard'));assert.ok(!app.includes('announceBoardPeak'));
 });
-test('gameplay, progression and save handlers remain identical to playable 2794bd8',()=>{
+test('unrelated gameplay and save handlers remain identical; approved exit recording is covered separately',()=>{
  const originalGamble=execFileSync('git',['show','2794bd8:src/foundersGamble.ts'],{encoding:'utf8'});
  const currentGamble=readFileSync('src/foundersGamble.ts','utf8');
  const addedFunction=currentGamble.match(/\/\*\* Highest eligible valuation in the current run, including the extension\. \*\/\s*export function personalBestValue\([\s\S]*?\n\}/);
@@ -103,7 +104,7 @@ test('gameplay, progression and save handlers remain identical to playable 2794b
   'Only the approved partner threshold may differ; standard-ranking rules stay unchanged'
  );
 
- const functions=source=>{const ast=ts.createSourceFile('main.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX),found={};(function visit(node){if(ts.isFunctionDeclaration(node)&&node.name&&!['App','Root','AccountGame'].includes(node.name.text))found[node.name.text]=node.getText(ast);ts.forEachChild(node,visit);})(ast);return found;};
+ const functions=source=>{const ast=ts.createSourceFile('main.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX),found={};(function visit(node){if(ts.isFunctionDeclaration(node)&&node.name&&!['App','Root','AccountGame','resolveExit'].includes(node.name.text))found[node.name.text]=node.getText(ast);ts.forEachChild(node,visit);})(ast);return found;};
  const current=functions(readFileSync('src/main.tsx','utf8'));
  const historical=functions(execFileSync('git',['show','2794bd8:src/main.tsx'],{encoding:'utf8'}));
  historical.load=historical.load.replace(
@@ -120,4 +121,14 @@ test('gameplay, progression and save handlers remain identical to playable 2794b
  );
  assert.deepEqual(current,historical);
  for(const path of ['src/BillionaireBoard.tsx','src/leaderboardCore.ts','src/rankingsApi.ts','src/boardAttribution.ts','src/localSaves.ts','src/localSaveChoice.ts','src/chipTrading.ts','src/ChipTradingPanel.tsx','src/style.css','capacitor.config.ts','supabase/migrations/202610150002_billionaire_board.sql'])assert.equal(readFileSync(path,'utf8'),execFileSync('git',['show','2794bd8:'+path],{encoding:'utf8'}),path);
+});
+
+test('Rankings defaults visibly to YOU and preserves an explicitly chosen custom name',()=>{
+ const g={month:3,cash:10e9,labs:0,seed:42,ended:false,positions:{},prices:Object.fromEntries(['l40s','a100','h100','h200','b200','mi300','mi325','gaudi'].map(k=>[k,34000]))};
+ const data=new Map([['silicon-hustle-local-v1',JSON.stringify(g)]]),store={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)};
+ const before=new Map(data);let html=renderToStaticMarkup(React.createElement(Overlord,{game:g,store}));
+ assert.match(html,/overlord-founder">YOU<small/);assert.match(html,/overlord-name-row"><b>YOU<\/b>/);assert.deepEqual(data,before,'rendering cannot write preferences or games');
+ store.setItem('silicon-hustle-rankings-profile-v1',JSON.stringify({version:1,name:'Nova Forge',welcomed:true}));
+ html=renderToStaticMarkup(React.createElement(Overlord,{game:g,store}));assert.match(html,/overlord-founder">Nova Forge<small/);assert.match(html,/overlord-name-row"><b>Nova Forge<\/b>/);assert.ok(html.includes('Reset Name'));
+ for(const phrase of ['Local Founder','Local Player','Device Founder'])assert.ok(!html.includes(phrase));
 });

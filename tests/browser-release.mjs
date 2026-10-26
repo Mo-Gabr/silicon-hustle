@@ -15,7 +15,7 @@ const user={id:uid,aud:'authenticated',role:'authenticated',email:'synthetic@exa
 const game=()=>({month:3,cash:5000000,prices:Object.fromEntries(['l40s','a100','h100','h200','b200','mi300','mi325','gaudi'].map(k=>[k,34000])),positions:{},labs:0,headline:'SYNTHETIC ONLY',history:[],ended:false,ending:'',seed:42,threat:null,threatHistory:[],crisisResult:null});
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let available=true;try{await access(chrome);}catch{available=false;}
-test('offline browser: local gameplay parity, read-only Rankings and Founders Gamble',{skip:!available?'Chrome not installed; set CHROME_BIN':false,timeout:120000},async()=>{
+test('offline browser: local gameplay parity, personalized Rankings and Founders Gamble',{skip:!available?'Chrome not installed; set CHROME_BIN':false,timeout:120000},async()=>{
  const root=await mkdtemp(join(tmpdir(),'silicon-board-release-browser-'));
  for(const variant of ['main','release','missingurl','missingkey','missingboth','invalidurl']){
   await build({entryPoints:['src/main.tsx'],bundle:true,format:'esm',outdir:join(root,variant),entryNames:'app',jsx:'automatic',define:{'import.meta.env.VITE_SUPABASE_URL':(variant==='missingurl'||variant==='missingboth')?'undefined':variant==='invalidurl'?JSON.stringify('invalid-url'):JSON.stringify('https://supabase.test'),'import.meta.env.VITE_SUPABASE_ANON_KEY':(variant==='missingkey'||variant==='missingboth')?'undefined':JSON.stringify('sb_publishable_SYNTHETIC_ONLY')},plugins:variant==='main'?[{name:'baseline-main',setup(b){b.onLoad({filter:/\/src\/.*\.(tsx?|css)$/},args=>({contents:execFileSync('git',['show',base+':'+args.path.slice(process.cwd().length+1)],{encoding:'utf8'}),loader:args.path.endsWith('.css')?'css':args.path.endsWith('.tsx')?'tsx':'ts'}));}}]:[]});
@@ -311,6 +311,65 @@ test('offline browser: local gameplay parity, read-only Rankings and Founders Ga
      assert.ok(await evaluate(`Array.from(document.querySelectorAll('.overlord-metrics dd')).every(e=>e.scrollWidth<=e.clientWidth+1)`));
     }
     await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='MARKET').click()`);await wait(`!!document.querySelector('.market')`);assert.equal(await allStorage(),beforeOverlord);
+    if(boardWidth){
+     // Local-only fixtures. No provider or real account traffic is permitted.
+     const qualifier={...game(),cash:10e9};
+     await evaluate(`localStorage.setItem('silicon-hustle-local-v1',${JSON.stringify(JSON.stringify(qualifier))});window.dispatchEvent(new Event('silicon-hustle-reload'))`);await sleep(80);
+     await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='RANKINGS').click()`);await wait(`!!document.querySelector('.overlord-player')`);
+     assert.equal(await evaluate(`document.querySelector('.overlord-player .overlord-rank').textContent`),'#3');assert.equal(await evaluate(`document.querySelector('.overlord-name-row b').textContent`),'YOU');assert.ok(await evaluate(`document.querySelector('.overlord-player .overlord-founder').textContent.startsWith('YOU')`));
+     assert.equal(await evaluate(`document.querySelectorAll('.overlord-rankings li').length`),10);
+     assert.ok(await evaluate(`document.querySelector('.overlord-profile').textContent.includes('You made the Top 10')`));
+     const gameBeforeName=await evaluate(`localStorage.getItem('silicon-hustle-local-v1')`);
+     await evaluate(`Array.from(document.querySelectorAll('.overlord-profile button')).find(b=>b.textContent==='Skip').click()`);await wait(`!document.querySelector('.overlord-profile').textContent.includes('You made the Top 10')`);
+     assert.equal(await evaluate(`document.querySelector('.overlord-name-row b').textContent`),'YOU');
+
+     await evaluate(`Array.from(document.querySelectorAll('.overlord-profile button')).find(b=>b.textContent==='Edit Name').click()`);
+     assert.equal(await evaluate(`document.activeElement.id`),'rankings-founder-name');
+     await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27},sessionId);
+     await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27},sessionId);
+     await wait(`!document.getElementById('rankings-founder-name')`);assert.equal(await evaluate(`document.activeElement.textContent`),'Edit Name');
+     await evaluate(`Array.from(document.querySelectorAll('.overlord-profile button')).find(b=>b.textContent==='Edit Name').click()`);await wait(`document.activeElement.id==='rankings-founder-name'`);
+     await evaluate(`(()=>{const e=document.getElementById('rankings-founder-name');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,'<script>');e.dispatchEvent(new Event('input',{bubbles:true}));})()`);await sleep(30);
+     await evaluate(`document.querySelector('.overlord-profile form').requestSubmit()`);await wait(`!!document.querySelector('.overlord-profile [role="alert"]')`);
+     assert.equal(await evaluate(`localStorage.getItem('silicon-hustle-local-v1')`),gameBeforeName);
+
+     await evaluate(`(()=>{const e=document.getElementById('rankings-founder-name');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,'Nova Forge');e.dispatchEvent(new Event('input',{bubbles:true}));})()`);await sleep(30);
+     await evaluate(`document.querySelector('.overlord-profile form').requestSubmit()`);await wait(`document.querySelector('.overlord-player .overlord-founder').textContent.includes('Nova Forge')`);
+     assert.equal(await evaluate(`localStorage.getItem('silicon-hustle-local-v1')`),gameBeforeName,'Name changes cannot change the game snapshot');assert.equal(await evaluate(`document.activeElement.textContent`),'Edit Name');
+     assert.ok(!await evaluate(`document.querySelector('.overlord-profile').textContent.includes('You made the Top 10')`));
+     // Exercise the real final-cover handler, not a synthesized exitResult.
+     const exitGame={...game(),month:42,cash:13e9,ended:true,gamble:{version:1,decision:'extend',standardResult:{month:30,valuation:100e6,peak:100e6,success:true,ending:'acquisition'},enterprise:{reliability:1,purchasedSlots:0,contracts:[],discountThrough:0,focus:'operate',ledger:[]},extensionOutcome:{month:42,valuation:13020e6,reason:'completed',unicorn:true,mogabr:false}}};
+     await evaluate(`localStorage.setItem('silicon-hustle-local-v1',${JSON.stringify(JSON.stringify(exitGame))});window.dispatchEvent(new Event('silicon-hustle-reload'))`);await wait(`!!document.querySelector('.final-cover .offers button')`);
+     await evaluate(`document.querySelectorAll('.final-cover .offers button')[2].click()`);await wait(`document.querySelector('.accepted')?.textContent.includes('exit value')`);
+     const completed=await evaluate(`JSON.parse(localStorage.getItem('silicon-hustle-local-v1'))`);
+     assert.equal(completed.exitResult.valuation,15624e6);assert.equal(completed.cash,13e9);assert.deepEqual(completed.gamble.standardResult,exitGame.gamble.standardResult);
+     await evaluate(`document.querySelector('.final-actions button').click();Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='RANKINGS').click()`);await wait(`!!document.querySelector('.overlord-player')`);
+     assert.ok(await evaluate(`document.querySelector('.overlord-personal').textContent.includes('$15,624,000,000.00')`));
+     assert.ok(await evaluate(`document.querySelector('.overlord-record-details').textContent.includes('Acquisition')&&document.querySelector('.overlord-record-details').textContent.includes('Month 42')`));
+     assert.equal(await evaluate(`document.querySelectorAll('.overlord-rankings li').length`),10);
+     assert.equal(await evaluate(`document.documentElement.scrollWidth>innerWidth`),false);
+     await evaluate(`document.querySelector('.overlord').scrollIntoView({block:'start'})`);
+     const clip=await evaluate(`(()=>{const r=document.querySelector('.overlord').getBoundingClientRect();return {x:r.left+scrollX,y:r.top+scrollY,width:r.width,height:r.height,scale:1};})()`);
+     const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip},sessionId);await writeFile(join(root,'personalized-rankings-'+boardWidth+'.png'),Buffer.from(shot.data,'base64'));
+     await evaluate(`document.documentElement.style.fontSize='24px';document.querySelectorAll('.overlord p,.overlord dd,.overlord dt,.overlord button,.overlord-founder,.overlord-score').forEach(e=>e.style.fontSize='20px')`);
+     assert.equal(await evaluate(`document.documentElement.scrollWidth>innerWidth`),false,'Personalized records and name controls fit enlarged text');
+     await send('Page.reload',{},sessionId);await wait(`!!document.querySelector('.final-actions button')`);await evaluate(`document.querySelector('.final-actions button').click();Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='RANKINGS').click()`);await wait(`!!document.querySelector('.overlord-player')`);
+     assert.ok(await evaluate(`document.querySelector('.overlord-player').textContent.includes('Nova Forge')`));
+     assert.ok(await evaluate(`document.querySelector('.overlord-record-details').textContent.includes('Acquisition')`));
+     assert.ok(!await evaluate(`document.querySelector('.overlord-profile').textContent.includes('You made the Top 10')`));
+     const bestBeforeReset=await evaluate(`document.querySelector('.overlord-personal strong').textContent`),gameBeforeReset=await evaluate(`localStorage.getItem('silicon-hustle-local-v1')`);
+     await evaluate(`Array.from(document.querySelectorAll('.overlord-profile button')).find(b=>b.textContent==='Reset Name').click()`);await wait(`document.querySelector('.overlord-name-row b').textContent==='YOU'`);
+     assert.ok(await evaluate(`document.querySelector('.overlord-player .overlord-founder').textContent.startsWith('YOU')`));
+     await evaluate(`Array.from(document.querySelectorAll('.overlord-profile button')).find(b=>b.textContent==='Edit Name').click()`);await wait(`!!document.getElementById('rankings-founder-name')`);
+     await evaluate(`(()=>{const e=document.getElementById('rankings-founder-name');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,'');e.dispatchEvent(new Event('input',{bubbles:true}));})()`);await sleep(30);await evaluate(`document.querySelector('.overlord-profile form').requestSubmit()`);await wait(`!document.getElementById('rankings-founder-name')`);
+     assert.equal(await evaluate(`document.querySelector('.overlord-name-row b').textContent`),'YOU');assert.equal(await evaluate(`document.querySelector('.overlord-personal strong').textContent`),bestBeforeReset);assert.equal(await evaluate(`localStorage.getItem('silicon-hustle-local-v1')`),gameBeforeReset);
+     await send('Page.reload',{},sessionId);await wait(`!!document.querySelector('.final-actions button')`);await evaluate(`document.querySelector('.final-actions button').click();Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='RANKINGS').click()`);await wait(`!!document.querySelector('.overlord-player')`);
+     assert.equal(await evaluate(`document.querySelector('.overlord-name-row b').textContent`),'YOU');assert.ok(await evaluate(`document.querySelector('.overlord-player .overlord-founder').textContent.startsWith('YOU')`));
+     assert.ok(!await evaluate(`document.querySelector('.overlord-profile').textContent.includes('You made the Top 10')`));
+     assert.equal(state.submits,0);assert.equal(state.saves.length,0);assert.deepEqual(state.rankingRequests??[],[]);
+     console.log('PASS: personalized local rank/name/restart/real acquisition/provenance/no-network at width '+boardWidth);
+    }
+
    }
    if(interactive){
     const saved=()=>evaluate(`JSON.parse((localStorage.getItem('silicon-hustle-local-v1')||localStorage.getItem('silicon-hustle-v04')||localStorage.getItem('compute-empire-v04')))`);

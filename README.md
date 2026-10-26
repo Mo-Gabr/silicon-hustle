@@ -15,8 +15,9 @@ Reach the goal at Month 30 and choose whether to cash out or take **The Founderâ
 - **Startup management:** Grow the AI lab, earn recurring revenue, respond to crises, and pursue an exit.
 - **Build the Enterprise:** Choose a monthly focus, land pilots and larger contracts, and pursue Unicorn and Legendary MOGABR achievements.
 - **Local saves:** Progress saves automatically and resumes on the same device. Normal gameplay works offline without an account.
+- **Personal Best:** Retains your highest eligible company valuation and completed exit separately. The overall best shows how it was achieved and its month when known; older records keep their values without invented history. Accepted acquisition prices and IPO results qualify without changing spendable cash.
 - **Optional accounts:** Guest and each authenticated account have separate local games and Personal Best records.
-- **Fictional Rankings:** THE OVERLORD features MOGABR and a fixed fictional Top 10 alongside your local Personal Best. It is not a live competitive leaderboard and submits no scores.
+- **Personalized fictional Rankings:** MOGABR and Gabe M. keep #1 and #2; your local Personal Best can earn one place among #3â€“#10. Your name defaults to YOU; customize it without signing in, or clear/reset it to return to YOU. No scores are submitted online.
 
 ## Tech Stack
 
