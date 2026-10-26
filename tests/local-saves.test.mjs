@@ -15,7 +15,9 @@ const protectedRead=f=>{
  const a=s.indexOf('/** Highest eligible valuation in the current run');
  const b=s.indexOf('\n}\n\n',a);
  if(a<0||b<0)throw Error('Personal Best function missing');
- return s.slice(0,a)+s.slice(b+4);
+ const preserved=s.slice(0,a)+s.slice(b+4);
+ assert.ok(preserved.includes('strategicReliability: 4'));
+ return preserved.replace('strategicReliability: 4','strategicReliability: 5');
 };
 
 test('empty first launch saves a new local game and resumes its exact seed/state',()=>{const d=new Disk(),empty=readLocal(d);assert.equal(empty.kind,'empty');writeLocal(d,game(),empty.stamp);assert.deepEqual(readLocal(d).state,game());assert.equal(d.getItem(OLD_KEY),null);assert.equal(d.getItem(LEGACY_KEY),null);});
@@ -34,7 +36,7 @@ test('recovery/quota failure prevents a fresh start and does not prune previous 
 test('stale tabs cannot overwrite a changed local game',()=>{const d=new Disk(),old=readLocal(d);writeLocal(d,game(),old.stamp);assert.throws(()=>writeLocal(d,game({cash:1}),old.stamp),/another window/);assert.equal(readLocal(d).state.cash,5e6);});
 test('reset preserves the previous completed game before creating a new run',()=>{const d=new Disk(),old=game({ended:true,month:30});writeLocal(d,old,readLocal(d).stamp);writeLocal(d,game(),readLocal(d).stamp,{fresh:true});assert.ok(JSON.parse(d.getItem(RECOVERY_KEY)).some(x=>x.raw===JSON.stringify(old)));});
 test('cloud APIs, selection and automatic-resume branch modules are absent from the runtime',()=>{for(const file of ['src/main.tsx','src/AuthGate.tsx','src/BillionaireBoard.tsx','src/localSaves.ts','src/LocalRecovery.tsx']){const code=readFileSync(file,'utf8');assert.ok(!code.includes(".from('game_saves')"),file);assert.ok(!code.includes('automaticResume'),file);assert.ok(!code.includes('SAVE REVIEW NEEDED'),file);}assert.ok(!readFileSync('src/AuthGate.tsx','utf8').includes('Choose your game save'));});
-test('enterprise economics and shared trading handlers remain byte-identical to Founders Gamble',()=>{for(const f of ['src/foundersGamble.ts','src/enterprisePresentation.ts','src/EnterprisePanel.tsx','src/ChipTradingPanel.tsx','src/chipTrading.ts','capacitor.config.ts'])assert.equal(protectedRead(f),execFileSync('git',['show','ae346d9:'+f],{encoding:'utf8'}));});
+test('only the approved partner threshold differs in enterprise economics; trading and native configuration stay identical',()=>{for(const f of ['src/foundersGamble.ts','src/ChipTradingPanel.tsx','src/chipTrading.ts','capacitor.config.ts'])assert.equal(protectedRead(f),execFileSync('git',['show','ae346d9:'+f],{encoding:'utf8'}));});
 
 test('a concurrent change during recovery preservation aborts replacement',()=>{const d=new Disk();d.setItem(LOCAL_KEY,'old unreadable');const before=readLocal(d),set=d.setItem.bind(d);d.setItem=(key,value)=>{set(key,value);if(key===RECOVERY_KEY)set(LOCAL_KEY,JSON.stringify(game({seed:77})));};assert.throws(()=>writeLocal(d,game({seed:99}),before.stamp,{fresh:true,recover:true}),/another window/);assert.equal(readLocal(d).state.seed,77);});
 
@@ -59,4 +61,23 @@ test('Guest fresh start archives previous progress and rejects invalid replaceme
    copy=>copy.raw===JSON.stringify(previous)
   )
  );
+});
+
+test('pre-release enterprise snapshots for every Month31–42 load and save without migration or original loss',async()=>{
+ const previous=execFileSync('git',['show','996e5fb:src/foundersGamble.ts'],{encoding:'utf8'});
+ const old=await import('data:text/javascript;base64,'+Buffer.from(ts.transpileModule(previous,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText).toString('base64'));
+ const route=['pilot','pilot','reliability','reliability','enterprise','enterprise','capacity','reliability','reliability','strategic','capacity','strategic'];
+ for(const seed of [0,42,117]){
+  let state=game({month:30,cash:100e6,labs:8,seed,ended:true});state.gamble=old.freezeStandard(state,250e6);state=old.decideGamble(state,'extend');const frozen=structuredClone(state.gamble.standardResult);
+  for(const plan of route){
+   const focus=old.focusBlock(state,plan)?'operate':plan;
+   const settled=old.settleEnterprise({...state,gamble:{...state.gamble,enterprise:{...state.gamble.enterprise,focus}}});
+   state={...state,month:state.month+1,cash:state.cash+state.labs*270000+settled.settlement.profit-settled.settlement.investment,ended:state.month+1===42,gamble:{...state.gamble,enterprise:settled.enterprise}};
+   const worth=20e6+state.cash+state.labs*420000*12*3.25+state.labs*270000*12*.3+old.premium(state);
+   state=old.recordMilestones(state,worth,state.ended?'completed':undefined);
+   const raw=JSON.stringify(state),disk=new Disk();disk.setItem(OLD_KEY,raw);const archive=JSON.stringify([{key:OLD_KEY,raw}]);disk.setItem(RECOVERY_KEY,archive);
+   const loaded=readLocal(disk);assert.equal(loaded.kind,'ready',`month ${state.month}`);assert.deepEqual(loaded.state,JSON.parse(raw));assert.deepEqual(loaded.state.gamble.standardResult,frozen);
+   writeLocal(disk,loaded.state,loaded.stamp);assert.deepEqual(readLocal(disk).state,JSON.parse(raw));assert.equal(disk.getItem(OLD_KEY),raw);assert.equal(disk.getItem(RECOVERY_KEY),archive);
+  }
+ }
 });

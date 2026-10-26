@@ -19,7 +19,9 @@ const protectedRead=f=>{
  const a=s.indexOf('/** Highest eligible valuation in the current run');
  const b=s.indexOf('\n}\n\n',a);
  if(a<0||b<0)throw Error('Personal Best function missing');
- return s.slice(0,a)+s.slice(b+4);
+ const preserved=s.slice(0,a)+s.slice(b+4);
+ assert.ok(preserved.includes('strategicReliability: 4'));
+ return preserved.replace('strategicReliability: 4','strategicReliability: 5');
 };
 
 test('unnamed games use Founder without borrowing account or Rankings identity',()=>{

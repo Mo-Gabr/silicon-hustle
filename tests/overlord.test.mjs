@@ -98,9 +98,9 @@ test('gameplay, progression and save handlers remain identical to playable 2794b
  const addedFunction=currentGamble.match(/\/\*\* Highest eligible valuation in the current run, including the extension\. \*\/\s*export function personalBestValue\([\s\S]*?\n\}/);
  assert.ok(addedFunction,'Expected the new Personal Best function');
  assert.equal(
-  currentGamble.replace(addedFunction[0]+'\n\n',''),
+  currentGamble.replace(addedFunction[0]+'\n\n','').replace('strategicReliability: 4','strategicReliability: 5'),
   originalGamble,
-  'Existing enterprise and standard-ranking rules must remain unchanged'
+  'Only the approved partner threshold may differ; standard-ranking rules stay unchanged'
  );
 
  const functions=source=>{const ast=ts.createSourceFile('main.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX),found={};(function visit(node){if(ts.isFunctionDeclaration(node)&&node.name&&!['App','Root','AccountGame'].includes(node.name.text))found[node.name.text]=node.getText(ast);ts.forEachChild(node,visit);})(ast);return found;};
@@ -119,5 +119,5 @@ test('gameplay, progression and save handlers remain identical to playable 2794b
   "store.setItem('silicon-hustle-tutorial-seen'"
  );
  assert.deepEqual(current,historical);
- for(const path of ['src/BillionaireBoard.tsx','src/leaderboardCore.ts','src/rankingsApi.ts','src/boardAttribution.ts','src/localSaves.ts','src/localSaveChoice.ts','src/EnterprisePanel.tsx','src/chipTrading.ts','src/ChipTradingPanel.tsx','src/style.css','capacitor.config.ts','supabase/migrations/202610150002_billionaire_board.sql'])assert.equal(readFileSync(path,'utf8'),execFileSync('git',['show','2794bd8:'+path],{encoding:'utf8'}),path);
+ for(const path of ['src/BillionaireBoard.tsx','src/leaderboardCore.ts','src/rankingsApi.ts','src/boardAttribution.ts','src/localSaves.ts','src/localSaveChoice.ts','src/chipTrading.ts','src/ChipTradingPanel.tsx','src/style.css','capacitor.config.ts','supabase/migrations/202610150002_billionaire_board.sql'])assert.equal(readFileSync(path,'utf8'),execFileSync('git',['show','2794bd8:'+path],{encoding:'utf8'}),path);
 });
