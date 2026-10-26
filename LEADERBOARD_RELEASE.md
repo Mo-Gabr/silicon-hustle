@@ -1,5 +1,7 @@
 # Rankings: release review
 
+> **Historical architecture record — not current setup instructions.** This document records the former live Rankings release, including cloud-save-based attribution. References below to cloud synchronization, live Rankings, branches, commits and validation status describe that earlier work. The current client uses account-isolated local games and fictional Rankings without score publishing. Use [README.md](README.md), [AUTH_SETUP.md](AUTH_SETUP.md) and [IOS_SETUP.md](IOS_SETUP.md) for current behavior and setup.
+
 Base: GitHub main `62aa1706d2f5bfb97b56483fda4c1cf0d656f53d` (verified read-only).
 Local release branch: `leaderboard-release`. The original release is commit `c94610d`; the Preview diagnostics/naming fixes are uncommitted for review.
 `main` and `leaderboard-development` refs are unchanged.
