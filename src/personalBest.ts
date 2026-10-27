@@ -12,6 +12,15 @@ export function snapshotBest(raw:unknown):number|null{
  const holdings=Object.entries(positions).reduce((sum,[key,p])=>sum+p.qty*prices[key],0);
  const labs=Number(s.labs);
  const current=Math.max(0,20_000_000+Number(s.cash)+holdings+labs*420000*12*3.25+labs*270000*12*.3)+premium(s as Parameters<typeof premium>[0]);
+ // A failed settlement must not mint a peak from its terminal valuation.
+ if(Number(s.cash)<0||['fraud','bankrupt'].includes(String(s.endingChoice))){
+  const reports=((s.reports||[]) as {month:number;valuation:number}[]).filter(r=>r.month<Number(s.month));
+  const g=s.gamble as Record<string,unknown>|undefined;
+  return personalBestValue({...s,reports,...(g?{gamble:{...g,extensionOutcome:undefined}}:{})},0);
+ }
+ const g=s.gamble as {extensionOutcome?:{month:number;reason:string}}|undefined;
+ // Exiting immediately after Double Down still retains the qualified Month30 record.
+ if(s.month===30&&g?.extensionOutcome?.month===30&&g.extensionOutcome.reason==='early')return personalBestValue({...s,gamble:{...g,extensionOutcome:undefined}},current);
  return personalBestValue(s,current);
 }
 function parse(raw:string|null){try{return raw===null?null:JSON.parse(raw);}catch{return null;}}

@@ -96,7 +96,7 @@ Before distributing a build:
 - Check Founder’s Gamble qualification, extension progression and Month 42 completion with disposable data.
 - Verify local profile isolation, restart persistence and in-place update behavior.
 - Check offline play, scrolling, safe areas, rotation, enlarged text and VoiceOver.
-- Confirm THE OVERLORD's fictional Top 10 works without sign-in or leaderboard requests.
+- Confirm THE OVERLORD's personalized fictional Top 10, local name editing and Personal Best details work without sign-in or leaderboard requests.
 - If authentication is configured, test Google, email links, cold starts, sign-out and account switching on the device.
 - Review app icons, privacy disclosures, account-related platform requirements and distribution signing separately.
 

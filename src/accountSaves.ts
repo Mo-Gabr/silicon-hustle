@@ -1,3 +1,4 @@
+import {rememberPersonalRecords} from './personalRecords';
 import {savedPersonalBest,rememberPersonalBest,snapshotBest} from './personalBest';
 import {LOCAL_KEY,GAME_KEYS,RECOVERY_KEY,decodeLocal,readLocal} from './localSaves';
 import {CHOICE_KEY} from './localSaveChoice';
@@ -37,11 +38,11 @@ export function accountStore(storage:Pick<Storage,'getItem'|'setItem'>,id:string
    let next:Record<string,unknown>|null=null;try{next=decodeLocal(JSON.parse(value));}catch{}
    // Preserve a confirmed outgoing best before a reset, recovery choice or sign-out replaces it.
    const replacing=current.state&&next&&(current.state.seed!==next.seed||Number(next.month)<Number(current.state.month));
-   try{rememberPersonalBest(scoped,savedPersonalBest(scoped));}catch(error){if(replacing)throw error;}
+   try{rememberPersonalBest(scoped,savedPersonalBest(scoped));rememberPersonalRecords(scoped);}catch(error){if(replacing)throw error;}
    scoped.setItem(key,value);
    if(scoped.getItem(key)!==value)throw Error('Your device could not save progress.');
    // An interrupted metadata write is recoverable from the committed snapshot on restart.
-   try{rememberPersonalBest(scoped,snapshotBest(next));}catch{/* Never block ordinary gameplay saves. */}
+   try{rememberPersonalBest(scoped,snapshotBest(next));rememberPersonalRecords(scoped,next);}catch{/* Never block ordinary gameplay saves. */}
 
   }
  };

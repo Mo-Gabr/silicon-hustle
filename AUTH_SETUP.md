@@ -4,9 +4,9 @@
 
 **One device. One game.** Guest gameplay, local autosave, Founder’s Gamble, Month 30 victories and achievements work offline. Authentication is optional; it is not required to play.
 
-THE OVERLORD displays a **fixed fictional Top 10**, not live Supabase Rankings. MOGABR is #1 and Gabe M. is #2. MOGABR’s featured valuation and #1 entry both display **$203,718,617,301.68**. The screen also shows the selected profile’s local Personal Best. Browsing it makes no Supabase Rankings reads or score submissions and requires no sign-in or Supabase configuration.
+THE OVERLORD displays a **personalized fictional Top 10**, not live Supabase Rankings. A qualifying local Personal Best inserts exactly one player entry among #3–#10; the other opponents are fictional. MOGABR is #1 and Gabe M. is #2. MOGABR’s featured valuation and #1 entry both display **$203,718,617,301.68**. The screen also shows the selected profile’s local Personal Best, its source and month when known, and a locally editable Founder Name (default YOU; clearing it or choosing Reset Name restores YOU). These preferences and record details are isolated for Guest and each account, without requiring sign-in. Browsing it makes no Supabase Rankings reads or score submissions and requires no sign-in or Supabase configuration.
 
-Historical live Rankings, score publishing and public founder-name editing are not exposed by the current UI. Existing implementation files and server records remain intact; they are not instructions to enable those features or apply migrations.
+Historical live Rankings, score publishing and server-side founder-name editing are not exposed by the current UI. The current Founder Name editor changes only local Rankings preferences, not the authenticated account or game snapshot. Existing implementation files and server records remain intact; they are not instructions to enable those features or apply migrations.
 
 ## Separate local games for Guest and accounts
 
@@ -57,7 +57,7 @@ When configuring a build, test native Google sign-in, email magic-link callbacks
 
 Gameplay keys are scoped to Guest or the authenticated account. Within that profile, `silicon-hustle-local-v1` takes priority over compatible `silicon-hustle-v04` and `compute-empire-v04` snapshots. Shared historical snapshots are copied only after explicit assignment, without deleting or overwriting the original shared keys. Existing scoped recovery copies remain available to the save-selection flow.
 
-Personal Best persists separately across games, resets and restarts for each profile, including eligible Founder’s Gamble valuations through Month 42. It is a local record, not a verified online score or a cross-device backup.
+Personal Best persists separately across games, resets and restarts for each profile, including eligible Founder’s Gamble valuations through Month 42. It retains company peaks and completed exit results separately, with the overall best’s provenance and month when available. New accepted acquisitions use the existing displayed offer price; IPOs use company valuation without a new premium. Older numeric records retain their value with unavailable provenance. It is a local record, not a verified online score or a cross-device backup.
 
 An incompatible game is held in place, with **Save a Copy** and **Try Again**. Starting fresh is explicit and only proceeds after original snapshots are retained locally. Exported recovery copies contain game data, not authentication tokens. Check that recovery exports actually reach the intended destination; retained originals remain device-local and do not depend on a successful external download. Clearing app/browser storage removes local games and recovery history; signing in cannot restore deleted data. No cloud import or synchronization occurs automatically.
 

@@ -4,7 +4,7 @@ Market cards and portfolio chip names open a desktop dialog or mobile bottom she
 
 The panel separates monthly market performance from the player's position. Average purchase cost includes buy fees; unrealized and estimated realized gains include the selling fee. Holdings market value is before selling fees. Missing or unreliable price history or cost basis displays **Unavailable**.
 
-NEXT MONTH adds an optional `previousMarket` snapshot containing the previous prices and the month they apply to. Existing saves remain readable without this field. The first month has no historical baseline. Missing or stale snapshots remain unavailable until the next advance; reset clears the snapshot. Market calculations and transactions are unchanged. Persistence is local-only as described in [README.md](README.md). Current Rankings are THE OVERLORD’s fixed fictional Top 10 and local Personal Best, available without authentication or Supabase; no live leaderboard requests or score submissions are made. No database migration is required.
+NEXT MONTH adds an optional `previousMarket` snapshot containing the previous prices and the month they apply to. Existing saves remain readable without this field. The first month has no historical baseline. Missing or stale snapshots remain unavailable until the next advance; reset clears the snapshot. Market calculations and transactions are unchanged. Persistence is local-only as described in [README.md](README.md). Current Rankings are THE OVERLORD’s personalized fictional Top 10 and local Personal Best, available without authentication or Supabase; no live leaderboard requests or score submissions are made. No database migration is required.
 
 ## Verification
 

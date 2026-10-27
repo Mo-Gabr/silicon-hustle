@@ -8,6 +8,9 @@ Entries include historical capabilities as well as later changes and removals. E
 
 ### Added
 
+- Personalized offline Rankings: MOGABR and Gabe M. stay #1/#2 while one qualifying local player can enter #3–#10. Guest/account-scoped Founder Names, one-time qualification congratulations and skippable customization require no sign-in.
+- Personal Best provenance and separate company-valuation/exit records, retaining the source and month through resets and restarts without inventing details for historical numeric records.
+
 - Compact enterprise progression path, explicit scheduled action/outcome and Operate/reset explanation, plus best-case insufficient-month warnings.
 
 - Six manually cycled system notices with an accessible Next Notice button and counter. THE OVERLORD supports mobile widths and enlarged text without network requests or persistent state.
@@ -27,6 +30,8 @@ Entries include historical capabilities as well as later changes and removals. E
 
 ### Changed
 
+- Personal Best now delivers deterministic achievement-based startup taunts, prioritizing boss valuations, then actual rank and outside-Top-10 valuation tiers. Technical Rankings disclosures remain in the documentation.
+
 - Reworked the public README and iOS setup guide for reproducible installation, clarified optional authentication and fictional Rankings, and labeled obsolete architecture records as historical.
 
 - Major Partner now requires reliability 4 rather than 5; contract prerequisites, costs, success probabilities and the Month 30/42 gates remain unchanged. No reliability bonus for successful contracts is added.
@@ -44,6 +49,12 @@ Entries include historical capabilities as well as later changes and removals. E
 - Documented the current Mac Mini development workflow on `codex/account-saves-finish` and the MacBook Air build, Capacitor synchronization, Xcode testing and IPA export workflow. At approved game commit `97005c2e7f6bcee0d53f991a30161e44b70624df` (application `0.9.0`), 162/162 automated tests and the production build passed on MacBook Air, and Capacitor iOS synchronization succeeded. Native Google/email authentication and account switching remain physical-iPhone validation tasks.
 
 ### Fixed
+
+- Personal Best writes retain the already-validated record through later storage-read failures, preserving its source/month, company peak and completed exit details instead of replacing them with a lower snapshot.
+
+- Rankings consistently defaults to YOU; clearing or resetting a custom Founder Name restores YOU without changing the game, Personal Best or congratulations preference.
+
+- Newly accepted acquisitions retain the existing displayed offer amount for Personal Best; IPOs retain company valuation without a new multiplier. Exit acceptance updates its UI only after the existing save succeeds. Failed terminal snapshots cannot create a new valuation peak.
 
 - Enterprise locked-action copy now shows every unmet requirement instead of hiding cash or capacity blockers behind contract/reliability progress.
 
