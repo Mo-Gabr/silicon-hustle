@@ -283,6 +283,7 @@ test('offline browser: local gameplay parity, personalized Rankings and Founders
     assert.equal(await evaluate(`document.querySelector('.overlord-heading p').getClientRects().length>0`),true,'Primary heading must remain visible under mobile header rules');
     assert.ok(await evaluate(`document.querySelector('.overlord').innerText.includes('SILICON HUSTLE / THE OVERLORD')`));
     assert.equal(await evaluate(`document.querySelector('.overlord-valuation strong').textContent`),'$203,718,617,301.68');
+    assert.equal(await evaluate(`document.querySelector('[data-testid="personal-best-taunt"]').textContent`),"You're calling this a startup? Your investors are calling it a tax write-off.");
     assert.equal(await evaluate(`document.querySelector('.overlord-rankings li:first-child .overlord-score').textContent`),'$203,718,617,301.68');
     assert.ok(await evaluate(`(()=>{const e=document.querySelector('.overlord-valuation strong'),r=document.createRange();r.selectNodeContents(e);const box=r.getBoundingClientRect(),container=e.getBoundingClientRect();return e.scrollWidth<=e.clientWidth+1&&box.left>=container.left-1&&box.right<=container.right+1&&box.height<=parseFloat(getComputedStyle(e).lineHeight)+1;})()`),'The entire fictional valuation fits on one line without clipping');
     assert.ok(await evaluate(`document.querySelector('.overlord-coming').textContent==='TOP 10'`));
@@ -318,6 +319,7 @@ test('offline browser: local gameplay parity, personalized Rankings and Founders
      await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='RANKINGS').click()`);await wait(`!!document.querySelector('.overlord-player')`);
      assert.equal(await evaluate(`document.querySelector('.overlord-player .overlord-rank').textContent`),'#3');assert.equal(await evaluate(`document.querySelector('.overlord-name-row b').textContent`),'YOU');assert.ok(await evaluate(`document.querySelector('.overlord-player .overlord-founder').textContent.startsWith('YOU')`));
      assert.equal(await evaluate(`document.querySelectorAll('.overlord-rankings li').length`),10);
+     assert.equal(await evaluate(`document.querySelector('[data-testid="personal-best-taunt"]').textContent`),"Third place. Two people still own the room, and you're paying for the coffee.");
      assert.ok(await evaluate(`document.querySelector('.overlord-profile').textContent.includes('You made the Top 10')`));
      const gameBeforeName=await evaluate(`localStorage.getItem('silicon-hustle-local-v1')`);
      await evaluate(`Array.from(document.querySelectorAll('.overlord-profile button')).find(b=>b.textContent==='Skip').click()`);await wait(`!document.querySelector('.overlord-profile').textContent.includes('You made the Top 10')`);
@@ -345,6 +347,7 @@ test('offline browser: local gameplay parity, personalized Rankings and Founders
      assert.equal(completed.exitResult.valuation,15624e6);assert.equal(completed.cash,13e9);assert.deepEqual(completed.gamble.standardResult,exitGame.gamble.standardResult);
      await evaluate(`document.querySelector('.final-actions button').click();Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='RANKINGS').click()`);await wait(`!!document.querySelector('.overlord-player')`);
      assert.ok(await evaluate(`document.querySelector('.overlord-personal').textContent.includes('$15,624,000,000.00')`));
+     assert.equal(await evaluate(`document.querySelector('[data-testid="personal-best-taunt"]').textContent`),"You're worth more than Gabe M. He's still #2. Welcome to corporate governance.");
      assert.ok(await evaluate(`document.querySelector('.overlord-record-details').textContent.includes('Acquisition')&&document.querySelector('.overlord-record-details').textContent.includes('Month 42')`));
      assert.equal(await evaluate(`document.querySelectorAll('.overlord-rankings li').length`),10);
      assert.equal(await evaluate(`document.documentElement.scrollWidth>innerWidth`),false);

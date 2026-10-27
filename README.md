@@ -17,7 +17,7 @@ Reach the goal at Month 30 and choose whether to cash out or take **The Founder�
 - **Local saves:** Progress saves automatically and resumes on the same device. Normal gameplay works offline without an account.
 - **Personal Best:** Retains your highest eligible company valuation and completed exit separately. The overall best shows how it was achieved and its month when known; older records keep their values without invented history. Accepted acquisition prices and IPO results qualify without changing spendable cash.
 - **Optional accounts:** Guest and each authenticated account have separate local games and Personal Best records.
-- **Personalized fictional Rankings:** MOGABR and Gabe M. keep #1 and #2; your local Personal Best can earn one place among #3–#10. Your name defaults to YOU; customize it without signing in, or clear/reset it to return to YOU. No scores are submitted online.
+- **Personalized fictional Rankings:** MOGABR and Gabe M. keep #1 and #2; your local Personal Best can earn one place among #3–#10. Your name defaults to YOU; customize it without signing in, or clear/reset it to return to YOU. Achievement-based taunts recognize your progress. No scores are submitted online.
 
 ## Tech Stack
 

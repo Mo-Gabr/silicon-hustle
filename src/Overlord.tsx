@@ -1,5 +1,6 @@
 import React,{useState,useEffect,useRef} from 'react';
 import './overlord.css';
+import {personalBestTaunt} from './rankingsTaunt';
 import {FIXED_RANKINGS,rankingMoney} from './fixedRankings';
 import {savedPersonalRecords,snapshotRecords,recordSource} from './personalRecords';
 import {personalizedRankings,rankingsProfile,saveRankingsProfile} from './rankingsProfile';
@@ -65,7 +66,7 @@ export default function Overlord({game,currentValuation,savedBest=null,store}:{g
     <div><dt>{['acquisition','ipo','early-exit'].includes(details.best.source)?'EXIT MONTH':'ACHIEVED MONTH'}</dt><dd>{details.best.month===null?'Unavailable':`Month ${details.best.month}`}</dd></div>
    </dl>}
    {details?.companyPeak&&details?.completedExit&&<details className="overlord-record-history"><summary>Record details</summary><p>Highest known company valuation: {rankingMoney(details.companyPeak.value)}. Best completed exit: {rankingMoney(details.completedExit.value)} ({recordSource(details.completedExit.source)}).</p></details>}
-   <p className="overlord-disclosure">Personalized fictional opponents · Your record stays on this device. No live competition or score publishing. MOGABR and Gabe M. keep #1 and #2.</p>
+   <p className="overlord-disclosure" data-testid="personal-best-taunt" role="status" aria-live="polite" aria-atomic="true">{personalBestTaunt(personalBest,rank)}</p>
   </section>
   {store&&<section className="overlord-profile" aria-labelledby="overlord-name-title">
    <h3 id="overlord-name-title">YOUR FOUNDER NAME</h3>

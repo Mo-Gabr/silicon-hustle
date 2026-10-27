@@ -30,6 +30,8 @@ Entries include historical capabilities as well as later changes and removals. E
 
 ### Changed
 
+- Personal Best now delivers deterministic achievement-based startup taunts, prioritizing boss valuations, then actual rank and outside-Top-10 valuation tiers. Technical Rankings disclosures remain in the documentation.
+
 - Reworked the public README and iOS setup guide for reproducible installation, clarified optional authentication and fictional Rankings, and labeled obsolete architecture records as historical.
 
 - Major Partner now requires reliability 4 rather than 5; contract prerequisites, costs, success probabilities and the Month 30/42 gates remain unchanged. No reliability bonus for successful contracts is added.
