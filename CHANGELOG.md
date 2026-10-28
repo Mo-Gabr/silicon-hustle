@@ -30,6 +30,8 @@ Entries include historical capabilities as well as later changes and removals. E
 
 ### Changed
 
+- Clarified How to Play winning and losing instructions, the qualifying optional 12-month extension, and IPO requirements; pricing disclosures and gameplay rules are unchanged.
+
 - Personal Best now delivers deterministic achievement-based startup taunts, prioritizing boss valuations, then actual rank and outside-Top-10 valuation tiers. Technical Rankings disclosures remain in the documentation.
 
 - Reworked the public README and iOS setup guide for reproducible installation, clarified optional authentication and fictional Rankings, and labeled obsolete architecture records as historical.
