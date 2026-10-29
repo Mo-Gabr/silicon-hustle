@@ -54,6 +54,8 @@ Entries include historical capabilities as well as later changes and removals. E
 
 ### Fixed
 
+- Kept ending/result cards within 320px screens using bounded grid columns and responsive value sizing, preserving dramatic headline typography and wider layouts.
+
 - Personal Best writes retain the already-validated record through later storage-read failures, preserving its source/month, company peak and completed exit details instead of replacing them with a lower snapshot.
 
 - Rankings consistently defaults to YOU; clearing or resetting a custom Founder Name restores YOU without changing the game, Personal Best or congratulations preference.

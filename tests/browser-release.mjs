@@ -99,14 +99,21 @@ test('offline browser: local gameplay parity, personalized Rankings and Founders
      {...game(),month:30,cash:160e6,labs:3,ended:true},
      {...game(),month:42,cash:13e9,ended:true,gamble:{version:1,decision:'extend',standardResult:{month:30,valuation:100e6,peak:100e6,success:true,ending:'acquisition'},enterprise:{reliability:1,purchasedSlots:0,contracts:[],discountThrough:0,focus:'operate',ledger:[]},extensionOutcome:{month:42,valuation:13020e6,reason:'completed',unicorn:true,mogabr:false}}}
     ];
+    const extended=endingFixtures[7];
+    endingFixtures.push(
+     {...game(),month:30,cash:120e6,ended:true,endingChoice:'fraud'},
+     ...[1e6,15e6,40e6,75e6].map(cash=>({...extended,cash,gamble:{...extended.gamble,extensionOutcome:{...extended.gamble.extensionOutcome,valuation:20e6+cash,unicorn:false}}})),
+     {...extended,cash:100e6,gamble:{...extended.gamble,extensionOutcome:{...extended.gamble.extensionOutcome,valuation:120e6,unicorn:false}}},
+     {...extended,cash:3e9,labs:3,gamble:{...extended.gamble,unicornMonth:31,extensionOutcome:{...extended.gamble.extensionOutcome,valuation:3072060000,mogabr:true}}}
+    );
     for(const [index,fixture] of endingFixtures.entries()){
      await evaluate(`localStorage.setItem('silicon-hustle-local-v1',${JSON.stringify(JSON.stringify(fixture))});window.dispatchEvent(new Event('silicon-hustle-reload'))`);
      await wait(`!!document.querySelector('.final-cover')`);
      const unchanged=await evaluate(`localStorage.getItem('silicon-hustle-local-v1')`);
      assert.equal(unchanged,JSON.stringify(fixture),'Rendering endings must not rewrite existing saves');
      const clean=async()=>{
-      const view=await evaluate(`(()=>{const e=document.querySelector('.final-cover'),a=e.querySelector('.final-actions'),prev=a.previousElementSibling;return {text:e.textContent,placeholder:!!e.querySelector(':scope > .report-fine'),gap:a.getBoundingClientRect().top-prev.getBoundingClientRect().bottom,overflow:Math.max(0,e.scrollWidth-e.clientWidth),actions:a.querySelectorAll('button').length};})()`);
-      if(variant!=='endingbaseline'){assert.ok(!/This is satire|fictional|No company or publication|not a crime/i.test(view.text));assert.equal(view.placeholder,false);assert.ok(view.gap<65,'Removed paragraph leaves no empty layout block');}assert.equal(view.actions,2);return view.overflow;
+      const view=await evaluate(`(()=>{const e=document.querySelector('.final-cover'),a=e.querySelector('.final-actions'),prev=a.previousElementSibling;return {text:e.textContent,placeholder:!!e.querySelector(':scope > .report-fine'),gap:a.getBoundingClientRect().top-prev.getBoundingClientRect().bottom,overflow:Math.max(0,e.scrollWidth-e.clientWidth),actions:a.querySelectorAll('button').length,headlineFits:(()=>{const h=e.querySelector('h2'),r=document.createRange();r.selectNodeContents(h);const b=h.getBoundingClientRect();return [...r.getClientRects()].every(x=>x.left>=b.left-1&&x.right<=b.right+1);})(),contentFits:[...e.querySelectorAll('.cover-stats>div,.offers button,.final-actions button')].every(x=>x.getBoundingClientRect().right<=e.getBoundingClientRect().right-2&&x.scrollWidth<=x.clientWidth+1)};})()`);
+      if(variant!=='endingbaseline'){assert.ok(!/This is satire|FICTIONAL LISTING|fictional IPO|fictional parody|No company or publication|not a crime/i.test(view.text));assert.equal(view.placeholder,false);assert.equal(view.overflow,0,'Final result must have zero horizontal overflow: '+boardWidth+' fixture '+index);assert.ok(view.headlineFits,'Entire headline must fit');assert.ok(view.contentFits,'Result cards and buttons must align inside dialog');assert.ok(view.gap<65,'Removed paragraph leaves no empty layout block');}assert.equal(view.actions,2);return view.overflow;
      };
      layouts.push(await clean());
      if(index===0)assert.equal(await evaluate(`document.querySelector('.final-cover h2').textContent`),'THE QUIET SHUTDOWN');
