@@ -30,6 +30,8 @@ Entries include historical capabilities as well as later changes and removals. E
 
 ### Changed
 
+- Removed repetitive fiction disclaimers from final results, acquisition offers and IPO presentation while preserving ending personality, financial results, pricing disclosures and legal notices.
+
 - Clarified How to Play winning and losing instructions, the qualifying optional 12-month extension, and IPO requirements; pricing disclosures and gameplay rules are unchanged.
 
 - Personal Best now delivers deterministic achievement-based startup taunts, prioritizing boss valuations, then actual rank and outside-Top-10 valuation tiers. Technical Rankings disclosures remain in the documentation.
@@ -51,6 +53,8 @@ Entries include historical capabilities as well as later changes and removals. E
 - Documented the current Mac Mini development workflow on `codex/account-saves-finish` and the MacBook Air build, Capacitor synchronization, Xcode testing and IPA export workflow. At approved game commit `97005c2e7f6bcee0d53f991a30161e44b70624df` (application `0.9.0`), 162/162 automated tests and the production build passed on MacBook Air, and Capacitor iOS synchronization succeeded. Native Google/email authentication and account switching remain physical-iPhone validation tasks.
 
 ### Fixed
+
+- Kept ending/result cards within 320px screens using bounded grid columns and responsive value sizing, preserving dramatic headline typography and wider layouts.
 
 - Personal Best writes retain the already-validated record through later storage-read failures, preserving its source/month, company peak and completed exit details instead of replacing them with a lower snapshot.
 

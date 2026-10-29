@@ -76,3 +76,6 @@ body::after{bottom:0;height:var(--sh-safe-bottom)}
 .enterprise-plan b{font-size:.75rem;color:#d9e8e2}.enterprise-plan p{margin:4px 0;font-size:.6875rem}.enterprise-plan small{color:#a7bbb5;font-size:.6875rem}
 .enterprise-plan .focus-block{color:#d8b978}
 @media(max-width:360px){.enterprise-path{grid-template-columns:1fr}.enterprise-path li{display:flex;gap:4px 8px;flex-wrap:wrap;align-items:baseline}}
+
+/* Keep final-result cards inside narrow phones without shrinking the headline. */
+@media(max-width:360px){.final-cover .cover-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.final-cover .cover-stats>div{min-width:0;padding:10px}.final-cover .cover-stats strong{font-size:clamp(18px,5.625vw,25px);overflow-wrap:anywhere}.final-cover .cover-stats small{overflow-wrap:anywhere}}
