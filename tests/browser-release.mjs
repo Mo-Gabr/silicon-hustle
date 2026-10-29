@@ -17,10 +17,10 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let available=true;try{await access(chrome);}catch{available=false;}
 test('offline browser: local gameplay parity, personalized Rankings and Founders Gamble',{skip:!available?'Chrome not installed; set CHROME_BIN':false,timeout:120000},async()=>{
  const root=await mkdtemp(join(tmpdir(),'silicon-board-release-browser-'));
- for(const variant of ['main','release','missingurl','missingkey','missingboth','invalidurl']){
-  await build({entryPoints:['src/main.tsx'],bundle:true,format:'esm',outdir:join(root,variant),entryNames:'app',jsx:'automatic',define:{'import.meta.env.VITE_SUPABASE_URL':(variant==='missingurl'||variant==='missingboth')?'undefined':variant==='invalidurl'?JSON.stringify('invalid-url'):JSON.stringify('https://supabase.test'),'import.meta.env.VITE_SUPABASE_ANON_KEY':(variant==='missingkey'||variant==='missingboth')?'undefined':JSON.stringify('sb_publishable_SYNTHETIC_ONLY')},plugins:variant==='main'?[{name:'baseline-main',setup(b){b.onLoad({filter:/\/src\/.*\.(tsx?|css)$/},args=>({contents:execFileSync('git',['show',base+':'+args.path.slice(process.cwd().length+1)],{encoding:'utf8'}),loader:args.path.endsWith('.css')?'css':args.path.endsWith('.tsx')?'tsx':'ts'}));}}]:[]});
+ for(const variant of ['main','endingbaseline','release','missingurl','missingkey','missingboth','invalidurl']){
+  await build({entryPoints:['src/main.tsx'],bundle:true,format:'esm',outdir:join(root,variant),entryNames:'app',jsx:'automatic',define:{'import.meta.env.VITE_SUPABASE_URL':(variant==='missingurl'||variant==='missingboth')?'undefined':variant==='invalidurl'?JSON.stringify('invalid-url'):JSON.stringify('https://supabase.test'),'import.meta.env.VITE_SUPABASE_ANON_KEY':(variant==='missingkey'||variant==='missingboth')?'undefined':JSON.stringify('sb_publishable_SYNTHETIC_ONLY')},plugins:['main','endingbaseline'].includes(variant)?[{name:'baseline-main',setup(b){b.onLoad({filter:/\/src\/.*\.(tsx?|css)$/},args=>({contents:execFileSync('git',['show',(variant==='endingbaseline'?'406b1a46bf22b9ed681723205da190a1f50077fc':base)+':'+args.path.slice(process.cwd().length+1)],{encoding:'utf8'}),loader:args.path.endsWith('.css')?'css':args.path.endsWith('.tsx')?'tsx':'ts'}));}}]:[]});
  }
- const server=http.createServer(async(req,res)=>{const m=req.url.match(/^\/(main|release|missingurl|missingkey|missingboth|invalidurl)\/(app\.(?:js|css))$/);if(m){res.setHeader('Content-Type',m[2].endsWith('js')?'text/javascript':'text/css');res.end(await readFile(join(root,m[1],m[2])));return;}if(/^\/(main|release|missingurl|missingkey|missingboth|invalidurl)\/$/.test(req.url)){const v=req.url.split('/')[1];res.setHeader('Content-Type','text/html');res.end(`<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><div id="root"></div><link rel="stylesheet" href="/${v}/app.css"><script type="module" src="/${v}/app.js"></script>`);return;}res.writeHead(404);res.end();});
+ const server=http.createServer(async(req,res)=>{const m=req.url.match(/^\/(main|endingbaseline|release|missingurl|missingkey|missingboth|invalidurl)\/(app\.(?:js|css))$/);if(m){res.setHeader('Content-Type',m[2].endsWith('js')?'text/javascript':'text/css');res.end(await readFile(join(root,m[1],m[2])));return;}if(/^\/(main|endingbaseline|release|missingurl|missingkey|missingboth|invalidurl)\/$/.test(req.url)){const v=req.url.split('/')[1];res.setHeader('Content-Type','text/html');res.end(`<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><div id="root"></div><link rel="stylesheet" href="/${v}/app.css"><script type="module" src="/${v}/app.js"></script>`);return;}res.writeHead(404);res.end();});
  await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;
  const profile=join(root,'fresh-profile');
  const child=spawn(chrome,['--headless=new','--disable-gpu','--disable-extensions','--disable-background-networking','--disable-component-update','--disable-sync','--no-first-run','--no-default-browser-check','--no-proxy-server','--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE localhost','--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'],{stdio:'ignore'});
@@ -53,7 +53,7 @@ test('offline browser: local gameplay parity, personalized Rankings and Founders
    await send('Fetch.fulfillRequest',{requestId,responseCode:status,responseHeaders:[{name:'Content-Type',value:'application/json'},{name:'Access-Control-Allow-Origin',value:origin},{name:'Access-Control-Allow-Headers',value:'*'},{name:'Access-Control-Allow-Methods',value:'GET,POST,PATCH,OPTIONS'}],body:Buffer.from(JSON.stringify(body)).toString('base64')},m.sessionId);
   };
   await send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:join(root,'downloads')});
-  async function scenario(variant,{signed=false,empty=false,board=false,error=false,deviceChoice=false,noLocal=false,legacy=false,differentCloud=false,configurationMissing=false,readError=false,publicEntry=false,interactive=null,rankingsCase=null,boardWidth=null,gambleCase=false,localCase=null,profileCase=null,recoveryChoice=null,accountCase=false}={}){
+  async function scenario(variant,{signed=false,empty=false,board=false,error=false,deviceChoice=false,noLocal=false,legacy=false,differentCloud=false,configurationMissing=false,readError=false,publicEntry=false,interactive=null,rankingsCase=null,boardWidth=null,gambleCase=false,localCase=null,profileCase=null,recoveryChoice=null,accountCase=false,endingsCase=false}={}){
    const {browserContextId}=await send('Target.createBrowserContext');const {targetId}=await send('Target.createTarget',{url:'about:blank',browserContextId});const {sessionId}=await send('Target.attachToTarget',{targetId,flatten:true});
    const state={signed,row:empty?null:{user_id:uid,game_state:(deviceChoice||differentCloud)?{...game(),month:4,cash:4000000}:game(),updated_at:'2026-10-15T00:00:00.123456Z'},posted:null,submits:0,reads:0,saves:[],errors:[],submitError:error,readError};states.set(sessionId,state);
    if(rankingsCase){state.posted={public_id:'00000000-0000-4000-8000-000000000202',display_name:'Synthetic Founder',best_valuation:['published','rename'].includes(rankingsCase)?30000000:1000000,game_version:'0.9.0',position:1,achieved_at:'2026-10-16T00:00:00Z',verification:'unverified'};state.submitError=rankingsCase==='failed';state.manualRetry=rankingsCase==='failed';state.editName=rankingsCase==='rename';}
@@ -89,6 +89,41 @@ test('offline browser: local gameplay parity, personalized Rankings and Founders
    await send('Page.addScriptToEvaluateOnNewDocument',{source:`if(!localStorage.getItem('__synthetic_seeded')){for(const [k,v] of Object.entries(${JSON.stringify(entries)}))localStorage.setItem(k,v);localStorage.setItem('__synthetic_seeded','yes');}`},sessionId);
    if(localCase==='quota')await send('Page.addScriptToEvaluateOnNewDocument',{source:`const set=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k===${JSON.stringify(scopedKey('silicon-hustle-local-v1'))})throw new DOMException('Synthetic quota','QuotaExceededError');return set.call(this,k,v);};`},sessionId);
    await send('Page.navigate',{url:origin+'/'+variant+'/'},sessionId);
+   if(endingsCase){
+    const layouts=[];
+    await wait(`!!document.querySelector('.shell')`);
+    const endingFixtures=[
+     {...game(),cash:-1,ended:true,endingChoice:'bankrupt'},
+     ...[1e6,15e6,40e6,75e6].map(cash=>({...game(),month:30,cash,ended:true})),
+     {...game(),month:30,cash:120e6,ended:true},
+     {...game(),month:30,cash:160e6,labs:3,ended:true},
+     {...game(),month:42,cash:13e9,ended:true,gamble:{version:1,decision:'extend',standardResult:{month:30,valuation:100e6,peak:100e6,success:true,ending:'acquisition'},enterprise:{reliability:1,purchasedSlots:0,contracts:[],discountThrough:0,focus:'operate',ledger:[]},extensionOutcome:{month:42,valuation:13020e6,reason:'completed',unicorn:true,mogabr:false}}}
+    ];
+    for(const [index,fixture] of endingFixtures.entries()){
+     await evaluate(`localStorage.setItem('silicon-hustle-local-v1',${JSON.stringify(JSON.stringify(fixture))});window.dispatchEvent(new Event('silicon-hustle-reload'))`);
+     await wait(`!!document.querySelector('.final-cover')`);
+     const unchanged=await evaluate(`localStorage.getItem('silicon-hustle-local-v1')`);
+     assert.equal(unchanged,JSON.stringify(fixture),'Rendering endings must not rewrite existing saves');
+     const clean=async()=>{
+      const view=await evaluate(`(()=>{const e=document.querySelector('.final-cover'),a=e.querySelector('.final-actions'),prev=a.previousElementSibling;return {text:e.textContent,placeholder:!!e.querySelector(':scope > .report-fine'),gap:a.getBoundingClientRect().top-prev.getBoundingClientRect().bottom,overflow:Math.max(0,e.scrollWidth-e.clientWidth),actions:a.querySelectorAll('button').length};})()`);
+      if(variant!=='endingbaseline'){assert.ok(!/This is satire|fictional|No company or publication|not a crime/i.test(view.text));assert.equal(view.placeholder,false);assert.ok(view.gap<65,'Removed paragraph leaves no empty layout block');}assert.equal(view.actions,2);return view.overflow;
+     };
+     layouts.push(await clean());
+     if(index===0)assert.equal(await evaluate(`document.querySelector('.final-cover h2').textContent`),'THE QUIET SHUTDOWN');
+     if(index===6){
+      if(variant!=='endingbaseline')assert.equal(await evaluate(`document.querySelector('.ipo-button').textContent`),'GO PUBLIC · IPO');
+      await evaluate(`document.querySelector('.ipo-button').click()`);await wait(`!!document.querySelector('.accepted')`);await clean();
+      const closed=await evaluate(`JSON.parse(localStorage.getItem('silicon-hustle-local-v1'))`);assert.equal(closed.endingChoice,'Fictional IPO');assert.equal(closed.exitResult.kind,'ipo');assert.equal(closed.cash,fixture.cash);
+      if(variant!=='endingbaseline')assert.ok(await evaluate(`document.querySelector('.accepted').textContent.startsWith('DEAL CLOSED: IPO')`));
+     }
+     if(index===7){
+      await evaluate(`document.querySelector('.offers button').click()`);await wait(`!!document.querySelector('.accepted')`);await clean();
+      assert.equal(await evaluate(`JSON.parse(localStorage.getItem('silicon-hustle-local-v1')).exitResult.kind`),'acquisition');
+     }
+     if(index===0||index===6||index===7){const shot=await send('Page.captureScreenshot',{format:'png'},sessionId);await writeFile(join(root,`ending-${variant}-${index}-${boardWidth}.png`),Buffer.from(shot.data,'base64'));}
+    }
+    assert.deepEqual(state.errors,[]);assert.equal(state.submits,0);assert.equal(state.saves.length,0);state.disposing=true;await send('Target.disposeBrowserContext',{browserContextId});states.delete(sessionId);console.log('PASS: ending results/save/exit/layout checks '+variant+' at '+boardWidth+'; overflow pixels '+JSON.stringify(layouts));return layouts;
+   }
    if(accountCase){
     const raw=expression=>evaluate(expression,true);
     await wait(`!!document.querySelector('.shell')`);
@@ -487,6 +522,7 @@ test('offline browser: local gameplay parity, personalized Rankings and Founders
   await scenario('release',{signed:true,board:true,publicEntry:true,boardWidth:390});console.log('PASS: signed-in THE OVERLORD remains fictional with zero requests or storage writes');
 
   }
+  for(const boardWidth of [1280,390,320]){const old=await scenario('endingbaseline',{endingsCase:true,boardWidth}),now=await scenario('release',{endingsCase:true,boardWidth});for(let i=0;i<now.length;i++)assert.ok(now[i]<=old[i],'Ending copy must not increase baseline horizontal overflow');}
   for(const boardWidth of [1280,390,320])await scenario('release',{gambleCase:true,boardWidth});
   await scenario('release',{signed:true,empty:true,gambleCase:true,boardWidth:390});
   for(const boardWidth of [320,390])for(const recoveryChoice of ['current','historical'])await scenario('release',{boardWidth,recoveryChoice});
